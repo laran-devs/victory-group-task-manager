@@ -1,0 +1,65 @@
+[
+  {
+    "id": "VT-101",
+    "title": "Разработка модуля аутентификации",
+    "description": "Реализовать вход через JWT и интеграцию с Victory ID.",
+    "status": "To Do",
+    "priority": "Высокий",
+    "tags": ["#Development", "#Security"],
+    "createdAt": "2026-05-10T10:00:00Z",
+    "deadline": "2026-05-20T18:00:00Z",
+    "vdlEvent": null
+  },
+  {
+    "id": "VT-102",
+    "title": "Оптимизация SEO для медицинского хаба",
+    "description": "Проверить мета-теги и структуру заголовков на основных лендингах.",
+    "status": "In Progress",
+    "priority": "Средний",
+    "tags": ["#SEO", "#Medical"],
+    "createdAt": "2026-05-12T09:30:00Z",
+    "deadline": "2026-05-25T18:00:00Z",
+    "vdlEvent": {
+      "type": "CPL",
+      "message": "CPL Рост +20%",
+      "severity": "critical"
+    }
+  },
+  {
+    "id": "VT-103",
+    "title": "Настройка аналитики Auto-портала",
+    "description": "Подключить VDL Event tracking для воронки продаж.",
+    "status": "To Do",
+    "priority": "Критический",
+    "tags": ["#Auto", "#Performance"],
+    "createdAt": "2026-05-14T11:00:00Z",
+    "deadline": "2026-05-18T18:00:00Z",
+    "vdlEvent": null
+  },
+  {
+    "id": "VT-104",
+    "title": "Дизайн UI-кита для Victory Group",
+    "description": "Обновить компоненты кнопок и инпутов согласно новому гайдлайну.",
+    "status": "Done",
+    "priority": "Низкий",
+    "tags": ["#Design"],
+    "createdAt": "2026-05-05T08:00:00Z",
+    "deadline": "2026-05-15T18:00:00Z",
+    "vdlEvent": null
+  },
+  {
+    "id": "VT-105",
+    "title": "Аудит ROI по Performance-кампаниям",
+    "description": "Проанализировать снижение эффективности в сегменте B2B.",
+    "status": "In Progress",
+    "priority": "Критический",
+    "tags": ["#Performance"],
+    "createdAt": "2026-05-15T14:00:00Z",
+    "deadline": "2026-05-22T18:00:00Z",
+    "vdlEvent": {
+      "type": "ROI",
+      "message": "ROI Снижение",
+      "severity": "critical"
+    }
+  }
+]
