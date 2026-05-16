@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+@theme {
+  --color-victory-anthracite: #18181b;
+  --color-victory-bg: #f3f4f6;
+}
+
+body {
+  @apply bg-gray-100 text-zinc-900;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
