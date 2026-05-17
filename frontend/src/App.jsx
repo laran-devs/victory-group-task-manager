@@ -10,11 +10,12 @@ import { LoginScreen } from './pages/LoginScreen';
 
 function App() {
   const handleServerEvent = useTaskStore((state) => state.handleServerEvent);
-  const fetchTasks = useTaskStore((state) => state.fetchTasks);
+  const initAuth = useTaskStore((state) => state.initAuth);
   const currentUser = useTaskStore((state) => state.currentUser);
 
   useEffect(() => {
-    fetchTasks();
+    // Try to restore session from token
+    initAuth();
 
     // Initialize WebSocket simulation
     const cleanup = simulateIncomingEvents((event) => {
@@ -22,7 +23,7 @@ function App() {
     });
 
     return cleanup;
-  }, [handleServerEvent, fetchTasks]);
+  }, [handleServerEvent, initAuth]);
 
   if (!currentUser) {
     return <LoginScreen />;

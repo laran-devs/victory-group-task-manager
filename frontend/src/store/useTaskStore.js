@@ -11,6 +11,7 @@ export const useTaskStore = create((set, get) => ({
     { id: '3', login: 'petr', name: 'Петр Сидоров', avatar: 'https://ui-avatars.com/api/?name=Petr+Sidorov&background=10b981&color=fff' }
   ],
   currentUser: null,
+  token: localStorage.getItem('token') || null,
   isAddTaskModalOpen: false,
   defaultNewTaskStatus: 'TO_DO',
   editingTask: null,
@@ -18,8 +19,80 @@ export const useTaskStore = create((set, get) => ({
   searchQuery: '',
   filterPriority: 'all',
   
-  login: (user) => set({ currentUser: user }),
-  logout: () => set({ currentUser: null }),
+  initAuth: async () => {
+    const token = get().token || localStorage.getItem('token');
+    if (!token) return;
+    try {
+      const response = await fetch('/api/auth/me', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const user = await response.json();
+        const mappedUser = {
+          id: user.id,
+          login: user.email.split('@')[0],
+          name: user.full_name,
+          avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name)}&background=4f46e5&color=fff`
+        };
+        set({ currentUser: mappedUser, token });
+        get().fetchTasks();
+        get().fetchUsers();
+      } else {
+        get().logout();
+      }
+    } catch (error) {
+      console.error('Failed to initialize auth from saved token:', error);
+    }
+  },
+
+  login: async (loginInput, passwordInput) => {
+    try {
+      const email = loginInput.includes('@') ? loginInput : `${loginInput.trim()}@victory.ru`;
+      const password = passwordInput || 'victory123';
+      
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        const { access_token } = data;
+        localStorage.setItem('token', access_token);
+        set({ token: access_token });
+        
+        const meResponse = await fetch('/api/auth/me', {
+          headers: { 'Authorization': `Bearer ${access_token}` }
+        });
+        
+        if (meResponse.ok) {
+          const user = await meResponse.json();
+          const mappedUser = {
+            id: user.id,
+            login: user.email.split('@')[0],
+            name: user.full_name,
+            avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name)}&background=4f46e5&color=fff`
+          };
+          set({ currentUser: mappedUser });
+          get().fetchTasks();
+          get().fetchUsers();
+          get().addNotification(`Успешный вход! Добро пожаловать, ${user.full_name}`, 'success');
+          return true;
+        }
+      }
+      return false;
+    } catch (error) {
+      console.error('Login action failed:', error);
+      return false;
+    }
+  },
+
+  logout: () => {
+    localStorage.removeItem('token');
+    set({ currentUser: null, token: null, tasks: [] });
+    get().addNotification('Вы вышли из системы', 'info');
+  },
   
   setSearchQuery: (query) => set({ searchQuery: query }),
   setFilterPriority: (priority) => set({ filterPriority: priority }),
@@ -40,8 +113,10 @@ export const useTaskStore = create((set, get) => ({
   }),
   
   fetchTasks: async () => {
+    const token = get().token || localStorage.getItem('token');
+    const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
     try {
-      const response = await fetch('/api/tasks?project_id=global');
+      const response = await fetch('/api/tasks?project_id=global', { headers });
       if (response.ok) {
         const data = await response.json();
         set({ tasks: data });
@@ -54,6 +129,28 @@ export const useTaskStore = create((set, get) => ({
     }
   },
 
+  fetchUsers: async () => {
+    const token = get().token || localStorage.getItem('token');
+    if (!token) return;
+    try {
+      const response = await fetch('/api/team', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const mappedUsers = data.map(user => ({
+          id: user.id,
+          login: user.email.split('@')[0],
+          name: user.full_name,
+          avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name)}&background=4f46e5&color=fff`
+        }));
+        set({ users: mappedUsers });
+      }
+    } catch (error) {
+      console.error('Failed to fetch team users from API:', error);
+    }
+  },
+
   moveTask: async (taskId, newStatus) => {
     set((state) => ({
       tasks: state.tasks.map((task) => 
@@ -61,13 +158,17 @@ export const useTaskStore = create((set, get) => ({
       )
     }));
     try {
+      const token = get().token || localStorage.getItem('token');
       await fetch(`/api/tasks/${taskId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({ status: newStatus })
       });
     } catch (error) {
-      console.error('Failed to update task:', error);
+      console.error('Failed to update task status:', error);
     }
   },
 
@@ -96,9 +197,13 @@ export const useTaskStore = create((set, get) => ({
     set({ tasks: nextTasks });
 
     try {
+      const token = get().token || localStorage.getItem('token');
       await fetch(`/api/tasks/${taskId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({ status: overStatus })
       });
     } catch (error) {
@@ -114,16 +219,19 @@ export const useTaskStore = create((set, get) => ({
       createdAt: task.createdAt || new Date().toISOString()
     };
     
-    // Оптимистичное обновление UI
     set((state) => ({
       tasks: [tempTask, ...state.tasks]
     }));
 
     try {
+      const token = get().token || localStorage.getItem('token');
       const taskPayload = { ...task, id: localId };
       const response = await fetch('/api/tasks', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
         body: JSON.stringify(taskPayload)
       });
       if (response.ok) {
@@ -197,14 +305,15 @@ export const useTaskStore = create((set, get) => ({
   clearAllNotifications: () => set({ notifications: [] }),
 
   deleteTask: async (taskId) => {
-    // Оптимистичное удаление
     set((state) => ({
       tasks: state.tasks.filter((task) => task.id !== taskId)
     }));
 
     try {
+      const token = get().token || localStorage.getItem('token');
       await fetch(`/api/tasks/${taskId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
       });
     } catch (error) {
       console.error('Failed to delete task on server:', error);
@@ -219,9 +328,13 @@ export const useTaskStore = create((set, get) => ({
     }));
 
     try {
+      const token = get().token || localStorage.getItem('token');
       await fetch(`/api/tasks/${taskId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
         body: JSON.stringify(updatedFields)
       });
     } catch (error) {

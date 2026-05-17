@@ -11,15 +11,11 @@ from app.core.security import get_password_hash
 async def seed_data():
     async with AsyncSessionLocal() as db:
         # 1. Seed Users
-        # Check if users table is empty
-        user_count_result = await db.execute(select(func.count(User.id)))
-        user_count = user_count_result.scalar()
-        
-        user_ivan = None
-        user_petr = None
-        
-        if user_count == 0:
-            print("Seeding users...", flush=True)
+        # Ensure Ivan and Petr exist in the database for testers
+        ivan_result = await db.execute(select(User).filter(User.email == "ivan@victory.ru"))
+        user_ivan = ivan_result.scalars().first()
+        if not user_ivan:
+            print("Seeding ivan@victory.ru...", flush=True)
             user_ivan = User(
                 id=uuid.uuid4(),
                 email="ivan@victory.ru",
@@ -28,6 +24,15 @@ async def seed_data():
                 role=UserRole.ADMIN,
                 position="Team Lead"
             )
+            db.add(user_ivan)
+            await db.commit()
+            await db.refresh(user_ivan)
+            print("Ivan seeded successfully.", flush=True)
+
+        petr_result = await db.execute(select(User).filter(User.email == "petr@victory.ru"))
+        user_petr = petr_result.scalars().first()
+        if not user_petr:
+            print("Seeding petr@victory.ru...", flush=True)
             user_petr = User(
                 id=uuid.uuid4(),
                 email="petr@victory.ru",
@@ -36,33 +41,16 @@ async def seed_data():
                 role=UserRole.USER,
                 position="Developer"
             )
-            db.add_all([user_ivan, user_petr])
+            db.add(user_petr)
             await db.commit()
-            await db.refresh(user_ivan)
             await db.refresh(user_petr)
-            print("Users seeded successfully.", flush=True)
-        else:
-            # Get existing users to associate them later
-            ivan_result = await db.execute(select(User).filter(User.email == "ivan@victory.ru"))
-            user_ivan = ivan_result.scalars().first()
-            petr_result = await db.execute(select(User).filter(User.email == "petr@victory.ru"))
-            user_petr = petr_result.scalars().first()
-            if not user_ivan or not user_petr:
-                # Fallback to any two users if the specific test ones are not present
-                all_users_result = await db.execute(select(User).limit(2))
-                all_users = all_users_result.scalars().all()
-                if len(all_users) >= 2:
-                    user_ivan, user_petr = all_users[0], all_users[1]
-                elif len(all_users) == 1:
-                    user_ivan = all_users[0]
-                    user_petr = all_users[0]
+            print("Petr seeded successfully.", flush=True)
         
         # 2. Seed Projects
-        # Check if projects table is empty
-        project_count_result = await db.execute(select(func.count(Project.id)))
-        project_count = project_count_result.scalar()
-        
-        if project_count == 0:
+        # Ensure global project exists in the database
+        project_result = await db.execute(select(Project).filter(Project.id == "global"))
+        global_project = project_result.scalars().first()
+        if not global_project:
             print("Seeding global project...", flush=True)
             owner_id = user_ivan.id if user_ivan else uuid.uuid4()
             global_project = Project(

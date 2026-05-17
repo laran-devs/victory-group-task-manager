@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
-from typing import List, Optional
+from typing import List, Optional, Union
+from uuid import UUID
 
 from app.api import dependencies
 from app.models.task import Task as TaskModel
@@ -10,6 +11,35 @@ from app.schemas.task import Task, TaskCreate, TaskUpdate
 from app.api.websockets import manager
 
 router = APIRouter()
+
+async def resolve_assignee_uuid(assignee_id: Optional[Union[UUID, str]], db: AsyncSession) -> Optional[UUID]:
+    if not assignee_id:
+        return None
+    if isinstance(assignee_id, UUID):
+        return assignee_id
+    
+    # Try parsing string to UUID
+    try:
+        return UUID(assignee_id)
+    except ValueError:
+        pass
+
+    # Handle string IDs from frontend mocks ("1", "2", "3" or logins)
+    from app.models.user import User as UserModel
+    if assignee_id in ("1", "ivan"):
+        result = await db.execute(select(UserModel.id).filter(UserModel.email.like("ivan%")))
+        val = result.scalar()
+        if val:
+            return val
+    elif assignee_id in ("3", "petr"):
+        result = await db.execute(select(UserModel.id).filter(UserModel.email.like("petr%")))
+        val = result.scalar()
+        if val:
+            return val
+            
+    # Fallback to the first user in the system if possible, or return None
+    result = await db.execute(select(UserModel.id).limit(1))
+    return result.scalar()
 
 @router.get("/", response_model=List[Task])
 async def read_tasks(
@@ -48,9 +78,12 @@ async def create_task(
     else:
         task_id = task_in.id
 
+    assignee_uuid = await resolve_assignee_uuid(task_in.assignee_id, db)
+
     db_task = TaskModel(
         id=task_id,
-        **task_in.model_dump(exclude={"id"})
+        assignee_id=assignee_uuid,
+        **task_in.model_dump(exclude={"id", "assignee_id"})
     )
     db.add(db_task)
     try:
@@ -106,6 +139,9 @@ async def update_task(
         raise HTTPException(status_code=404, detail="Task not found")
     
     update_data = task_in.model_dump(exclude_unset=True)
+    if "assignee_id" in update_data:
+        update_data["assignee_id"] = await resolve_assignee_uuid(update_data["assignee_id"], db)
+
     for field, value in update_data.items():
         setattr(db_task, field, value)
         
