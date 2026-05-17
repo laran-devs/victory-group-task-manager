@@ -10,7 +10,7 @@ class ProjectCreate(ProjectBase):
     pass
 
 class ProjectInDBBase(ProjectBase):
-    id: UUID
+    id: str
     owner_id: UUID
 
     model_config = ConfigDict(from_attributes=True)

@@ -4,18 +4,21 @@ from uuid import UUID
 from datetime import datetime
 from app.models.task import TaskStatus, TaskPriority
 
+from app.schemas.user import User as UserSchema
+from app.schemas.vdl_event import VDLEvent as VDLEventSchema
+
 class TaskBase(BaseModel):
     title: str
     description: Optional[str] = None
     status: TaskStatus = TaskStatus.TO_DO
     priority: TaskPriority = TaskPriority.MEDIUM
-    project_id: UUID
+    project_id: str
     assignee_id: Optional[UUID] = None
     vdl_event_id: Optional[UUID] = None
     deadline: Optional[datetime] = None
 
 class TaskCreate(TaskBase):
-    id: str # e.g. VT-101 (Client provides or we generate? Let's assume client/backend generates it. For now required in creation)
+    id: Optional[str] = None
 
 class TaskUpdate(BaseModel):
     title: Optional[str] = None
@@ -32,4 +35,5 @@ class TaskInDBBase(TaskBase):
     model_config = ConfigDict(from_attributes=True)
 
 class Task(TaskInDBBase):
-    pass
+    assignee: Optional[UserSchema] = None
+    vdl_event: Optional[VDLEventSchema] = None
