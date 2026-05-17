@@ -9,6 +9,7 @@ import { useTaskStore } from './store/useTaskStore';
 import { LoginScreen } from './pages/LoginScreen';
 import { Team } from './pages/Team';
 import AdminPanel from './pages/AdminPanel';
+import { Reports } from './pages/Reports';
 
 function App() {
   const handleServerEvent = useTaskStore((state) => state.handleServerEvent);
@@ -52,7 +53,7 @@ function App() {
           {(currentUser.role === 'Admin' || currentUser.role === 'Superuser') && (
             <Route path="/admin" element={<AdminPanel />} />
           )}
-          <Route path="/reports" element={<div className="p-8">Раздел Отчеты</div>} />
+          <Route path="/reports" element={<Reports />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </MainLayout>

@@ -44,7 +44,8 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.PROJECT_NAME,
     lifespan=lifespan,
-    root_path="/api"
+    docs_url="/api/docs",
+    openapi_url="/api/openapi.json"
 )
 
 # CORS

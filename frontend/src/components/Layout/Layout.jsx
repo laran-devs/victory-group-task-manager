@@ -43,6 +43,7 @@ const Sidebar = () => {
     { icon: LayoutDashboard, label: 'Панель задач', path: '/' },
     { icon: Briefcase, label: 'Проекты', path: '/projects' },
     { icon: Users, label: 'Команда', path: '/team' },
+    { icon: BarChart3, label: 'Отчеты', path: '/reports' },
     ...((currentUser?.role === 'Admin' || currentUser?.role === 'Superuser')
       ? [{ icon: BarChart3, label: 'Панель управления', path: '/admin' }]
       : []),
@@ -122,10 +123,10 @@ const TopBar = ({ onAddTask, onFeatureNotReady }) => {
           <Briefcase size={16} className="mr-2 text-indigo-500 shrink-0" />
           <select 
             className="bg-transparent border-none py-0 focus:ring-0 outline-none cursor-pointer text-sm font-bold text-zinc-700 pr-2 max-w-[180px] truncate"
-            value={selectedProject ? selectedProject.id : 'global'}
+            value={selectedProject ? selectedProject.id : 'all'}
             onChange={(e) => {
               const val = e.target.value;
-              if (val === 'global') {
+              if (val === 'all') {
                 setSelectedProject(null);
               } else {
                 const found = projects.find(p => p.id === val);
@@ -136,7 +137,7 @@ const TopBar = ({ onAddTask, onFeatureNotReady }) => {
               }, 0);
             }}
           >
-            <option value="global">Все проекты</option>
+            <option value="all">Все проекты</option>
             {projects.map(proj => (
               <option key={proj.id} value={proj.id}>{proj.name}</option>
             ))}

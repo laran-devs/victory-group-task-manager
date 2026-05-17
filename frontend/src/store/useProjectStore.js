@@ -50,4 +50,23 @@ export const useProjectStore = create((set, get) => ({
       return { success: false, error: error.message };
     }
   },
+
+  downloadProjectReport: async (projectId, format) => {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`/api/projects/${projectId}/report?format=${format}`, {
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+    });
+    if (!response.ok) {
+      throw new Error(`Server returned ${response.status}`);
+    }
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Victory_Report_${projectId}.${format}`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  },
 }));

@@ -9,14 +9,15 @@ export const simulateIncomingEvents = (onEvent) => {
 
   let socket = null;
   let simulatedInterval = null;
+  let reconnectTimeout = null;
   let isConnected = false;
 
   // Determine correct WebSocket URL
   const isDevPort = window.location.port === '5173';
   const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const wsUrl = isDevPort
-    ? 'ws://localhost:8000/ws/tasks?project_id=global'
-    : `${wsProtocol}//${window.location.host}/ws/tasks?project_id=global`;
+    ? 'ws://localhost:8000/ws/tasks?project_id=all'
+    : `${wsProtocol}//${window.location.host}/ws/tasks?project_id=all`;
 
   const connectRealWebSocket = () => {
     try {
@@ -48,7 +49,7 @@ export const simulateIncomingEvents = (onEvent) => {
         // Start simulation fallback if not already running
         startSimulationFallback();
         // Reconnect attempt after 10 seconds
-        setTimeout(connectRealWebSocket, 10000);
+        reconnectTimeout = setTimeout(connectRealWebSocket, 10000);
       };
 
       socket.onerror = (err) => {
@@ -104,10 +105,15 @@ export const simulateIncomingEvents = (onEvent) => {
 
   return () => {
     if (socket) {
+      // Prevent onclose from triggering reconnect since we are unmounting
+      socket.onclose = null;
       socket.close();
     }
     if (simulatedInterval) {
       clearInterval(simulatedInterval);
+    }
+    if (reconnectTimeout) {
+      clearTimeout(reconnectTimeout);
     }
   };
 };

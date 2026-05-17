@@ -26,7 +26,7 @@ async def resolve_assignee_uuid(assignee_id: Optional[Union[UUID, str]], db: Asy
         try:
             target_uuid = UUID(assignee_id)
         except ValueError:
-            pass
+            raise HTTPException(status_code=400, detail=f"Invalid UUID format for assignee: {assignee_id}")
             
     if target_uuid:
         # Check if user actually exists in the database to prevent Foreign Key crashes
@@ -34,33 +34,22 @@ async def resolve_assignee_uuid(assignee_id: Optional[Union[UUID, str]], db: Asy
         exists = result.scalar()
         if exists:
             return exists
+        else:
+            raise HTTPException(status_code=404, detail="Assignee user not found")
             
-    # Handle string IDs from frontend mocks ("1", "2", "3" or logins)
-    if assignee_id in ("1", "ivan"):
-        result = await db.execute(select(UserModel.id).filter(UserModel.email.like("ivan%")))
-        val = result.scalar()
-        if val:
-            return val
-    elif assignee_id in ("3", "petr"):
-        result = await db.execute(select(UserModel.id).filter(UserModel.email.like("petr%")))
-        val = result.scalar()
-        if val:
-            return val
-            
-    # Fallback to the first user in the system if possible, or return None
-    result = await db.execute(select(UserModel.id).limit(1))
-    return result.scalar()
+    return None
 
 @router.get("/", response_model=List[Task])
 async def read_tasks(
-    project_id: str = "global",
+    project_id: str = "all",
     db: AsyncSession = Depends(dependencies.get_db)
 ):
-    result = await db.execute(
-        select(TaskModel)
-        .filter(TaskModel.project_id == project_id)
-        .options(joinedload(TaskModel.assignee), joinedload(TaskModel.vdl_event))
-    )
+    query = select(TaskModel).options(joinedload(TaskModel.assignee), joinedload(TaskModel.vdl_event))
+    
+    if project_id != "all":
+        query = query.filter(TaskModel.project_id == project_id)
+        
+    result = await db.execute(query)
     tasks = result.scalars().all()
     return tasks
 

@@ -21,26 +21,32 @@ class ConnectionManager:
 
     async def broadcast_to_project(self, project_id: str, message: dict):
         if project_id in self.active_connections:
+            dead_connections = []
             for connection in self.active_connections[project_id]:
                 try:
                     await connection.send_json(message)
                 except Exception:
-                    pass
+                    dead_connections.append(connection)
+            for dead in dead_connections:
+                self.disconnect(dead, project_id)
 
     async def broadcast_global(self, message: dict):
-        for connections in self.active_connections.values():
+        dead_connections = []
+        for project_id, connections in self.active_connections.items():
             for connection in connections:
                 try:
                     await connection.send_json(message)
                 except Exception:
-                    pass
+                    dead_connections.append((connection, project_id))
+        for dead, project_id in dead_connections:
+            self.disconnect(dead, project_id)
 
 manager = ConnectionManager()
 
 router = APIRouter()
 
 @router.websocket("/ws/tasks")
-async def websocket_endpoint(websocket: WebSocket, project_id: str = "global"):
+async def websocket_endpoint(websocket: WebSocket, project_id: str = "all"):
     await manager.connect(websocket, project_id)
     try:
         while True:
