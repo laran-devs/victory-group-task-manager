@@ -21,7 +21,7 @@ export const KanbanBoard = () => {
   const moveTaskToColumn = useTaskStore((state) => state.moveTaskToColumn);
 
   const filteredTasks = tasks.filter(task => {
-    const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = (task.title || '').toLowerCase().includes(searchQuery.toLowerCase());
     const matchesPriority = filterPriority === 'all' || task.priority === filterPriority;
     return matchesSearch && matchesPriority;
   });

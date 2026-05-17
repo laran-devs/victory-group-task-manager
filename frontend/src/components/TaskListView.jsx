@@ -53,7 +53,7 @@ export const TaskListView = () => {
   const filterPriority = useTaskStore((state) => state.filterPriority);
 
   const filteredTasks = tasks.filter(task => {
-    const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = (task.title || '').toLowerCase().includes(searchQuery.toLowerCase());
     const matchesPriority = filterPriority === 'all' || task.priority === filterPriority;
     return matchesSearch && matchesPriority;
   });
@@ -102,7 +102,9 @@ export const TaskListView = () => {
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-1.5 text-gray-500 text-xs font-medium">
                     <Calendar size={14} />
-                    {new Date(task.deadline).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
+                    {task.deadline 
+                      ? new Date(task.deadline).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })
+                      : 'Без срока'}
                   </div>
                 </td>
                 <td className="px-6 py-4 text-right">
