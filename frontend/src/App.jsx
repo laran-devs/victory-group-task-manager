@@ -2,7 +2,6 @@ import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { MainLayout } from './components/Layout/Layout';
 import Dashboard from './pages/Dashboard';
-import { Clients } from './pages/OtherPages';
 import { Projects } from './pages/Projects';
 import { NotificationToast } from './components/NotificationToast';
 import { simulateIncomingEvents } from './services/socket';
@@ -10,6 +9,7 @@ import { useTaskStore } from './store/useTaskStore';
 import { LoginScreen } from './pages/LoginScreen';
 
 import { Team } from './pages/Team';
+import { Reports } from './pages/Reports';
 
 function App() {
   const handleServerEvent = useTaskStore((state) => state.handleServerEvent);
@@ -49,9 +49,8 @@ function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/tasks" element={<Dashboard />} />
           <Route path="/projects" element={<Projects />} />
-          <Route path="/clients" element={<Clients />} />
           <Route path="/team" element={<Team />} />
-          <Route path="/reports" element={<div className="p-8">Раздел Отчеты</div>} />
+          <Route path="/reports" element={<Reports />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </MainLayout>

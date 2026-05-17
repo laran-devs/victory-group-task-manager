@@ -13,7 +13,7 @@ class TaskBase(BaseModel):
     description: Optional[str] = None
     status: TaskStatus = TaskStatus.TO_DO
     priority: TaskPriority = TaskPriority.MEDIUM
-    project_id: Optional[str] = "global"
+    project_id: Optional[str] = "all"
     assignee_id: Optional[Union[UUID, str]] = None
     vdl_event_id: Optional[Union[UUID, str]] = None
     deadline: Optional[datetime] = None

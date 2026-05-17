@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { arrayMove } from '@dnd-kit/sortable';
 import initialTasks from '../mocks/tasks.json';
+import { useProjectStore } from './useProjectStore';
 
 export const useTaskStore = create((set, get) => ({
   tasks: [],
@@ -121,7 +122,9 @@ export const useTaskStore = create((set, get) => ({
     const token = get().token || localStorage.getItem('token');
     const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
     try {
-      const response = await fetch('/api/tasks/?project_id=global', { headers });
+      const selectedProject = useProjectStore.getState().selectedProject;
+      const projectId = selectedProject ? selectedProject.id : 'all';
+      const response = await fetch(`/api/tasks/?project_id=${projectId}`, { headers });
       if (response.ok) {
         const data = await response.json();
         set({ tasks: data });
@@ -218,9 +221,13 @@ export const useTaskStore = create((set, get) => ({
 
   addTask: async (task) => {
     const localId = task.id || `VT-${Math.floor(Math.random() * 1000)}`;
+    const selectedProject = useProjectStore.getState().selectedProject;
+    const projectId = selectedProject ? selectedProject.id : 'all';
+    
     const tempTask = {
       ...task,
       id: localId,
+      projectId: projectId,
       createdAt: task.createdAt || new Date().toISOString()
     };
     
@@ -230,7 +237,7 @@ export const useTaskStore = create((set, get) => ({
 
     try {
       const token = get().token || localStorage.getItem('token');
-      const taskPayload = { ...task, id: localId };
+      const taskPayload = { ...task, id: localId, projectId: projectId };
       const response = await fetch('/api/tasks/', {
         method: 'POST',
         headers: { 
