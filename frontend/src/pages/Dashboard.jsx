@@ -1,6 +1,10 @@
 import { KanbanBoard } from '../components/Kanban/KanbanBoard';
+import { TaskListView } from '../components/TaskListView';
+import { useTaskStore } from '../store/useTaskStore';
 
 const Dashboard = () => {
+  const viewMode = useTaskStore((state) => state.viewMode);
+  const currentUser = useTaskStore((state) => state.currentUser);
   return (
     <div>
       <div className="flex items-center justify-between mb-8">
@@ -10,21 +14,26 @@ const Dashboard = () => {
         </div>
         <div className="flex items-center gap-2">
           <div className="flex -space-x-2">
-            {[1,2,3,4].map(i => (
-              <img 
-                key={i}
-                className="w-8 h-8 rounded-full border-2 border-white" 
-                src={`https://ui-avatars.com/api/?name=User+${i}&background=random`} 
-                alt="Member" 
-              />
-            ))}
-            <div className="w-8 h-8 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-500">+12</div>
+            <img 
+              className="w-8 h-8 rounded-full border-2 border-white shadow-sm" 
+              src={currentUser?.avatar} 
+              title={`${currentUser?.name} (Вы онлайн)`}
+              alt={currentUser?.name} 
+            />
           </div>
-          <button className="ml-4 px-4 py-2 border border-gray-200 rounded-lg text-sm font-semibold hover:bg-white transition-colors">Поделиться</button>
+          <button 
+            onClick={() => {
+              navigator.clipboard.writeText(window.location.href);
+              useTaskStore.getState().addNotification('Ссылка на проект скопирована в буфер обмена', 'success');
+            }}
+            className="ml-4 px-4 py-2 border border-gray-200 rounded-lg text-sm font-semibold hover:bg-white transition-colors"
+          >
+            Поделиться
+          </button>
         </div>
       </div>
       
-      <KanbanBoard />
+      {viewMode === 'board' ? <KanbanBoard /> : <TaskListView />}
     </div>
   );
 };

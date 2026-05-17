@@ -1,8 +1,10 @@
+import React, { useState, useRef, useEffect } from 'react';
 import { Calendar, AlertCircle, MoreHorizontal } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { useTaskStore } from '../../store/useTaskStore';
 
 function cn(...inputs) {
   return twMerge(clsx(inputs));
@@ -32,6 +34,26 @@ export const TaskCard = ({ task }) => {
     transition,
     isDragging
   } = useSortable({ id: task.id });
+
+  const addNotification = useTaskStore((state) => state.addNotification);
+  const deleteTask = useTaskStore((state) => state.deleteTask);
+  const openAddTaskModal = useTaskStore((state) => state.openAddTaskModal);
+  const users = useTaskStore((state) => state.users);
+  
+  const assignee = users.find(u => u.id === task.assigneeId) || users[0];
+  
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setIsMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -63,9 +85,45 @@ export const TaskCard = ({ task }) => {
             </span>
           ))}
         </div>
-        <button className="text-gray-400 hover:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity">
-          <MoreHorizontal size={16} />
-        </button>
+        <div className="relative" ref={menuRef}>
+          <button 
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsMenuOpen(!isMenuOpen);
+            }}
+            className={`opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md ${isMenuOpen ? 'opacity-100 bg-gray-100 text-gray-700' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}
+          >
+            <MoreHorizontal size={16} />
+          </button>
+
+          {isMenuOpen && (
+            <div className="absolute right-0 top-full mt-1 w-36 bg-white rounded-lg shadow-xl border border-gray-100 py-1 z-[100] animate-in fade-in zoom-in duration-150">
+              <button 
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsMenuOpen(false);
+                  openAddTaskModal(task.status, task);
+                }}
+                className="w-full text-left px-3 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 hover:text-indigo-600 transition-colors"
+              >
+                Редактировать
+              </button>
+              <button 
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsMenuOpen(false);
+                  deleteTask(task.id);
+                }}
+                className="w-full text-left px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50 transition-colors"
+              >
+                Удалить
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       <h3 className="font-bold text-sm text-zinc-800 leading-snug mb-2 group-hover:text-indigo-600 transition-colors">
@@ -99,8 +157,9 @@ export const TaskCard = ({ task }) => {
         <div className="flex -space-x-1.5">
           <img 
             className="w-6 h-6 rounded-full border-2 border-white" 
-            src={`https://ui-avatars.com/api/?name=${task.id}&background=random`} 
-            alt="Assignee" 
+            src={assignee.avatar} 
+            title={assignee.name}
+            alt={assignee.name} 
           />
         </div>
       </div>

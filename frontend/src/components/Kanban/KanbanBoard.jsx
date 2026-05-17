@@ -16,7 +16,15 @@ import { useTaskStore } from '../../store/useTaskStore';
 
 export const KanbanBoard = () => {
   const tasks = useTaskStore((state) => state.tasks);
+  const searchQuery = useTaskStore((state) => state.searchQuery);
+  const filterPriority = useTaskStore((state) => state.filterPriority);
   const moveTaskToColumn = useTaskStore((state) => state.moveTaskToColumn);
+
+  const filteredTasks = tasks.filter(task => {
+    const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesPriority = filterPriority === 'all' || task.priority === filterPriority;
+    return matchesSearch && matchesPriority;
+  });
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -65,7 +73,7 @@ export const KanbanBoard = () => {
             key={column.status}
             title={column.title}
             status={column.status}
-            tasks={tasks.filter(t => t.status === column.status)}
+            tasks={filteredTasks.filter(t => t.status === column.status)}
           />
         ))}
       </div>
