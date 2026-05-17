@@ -121,7 +121,7 @@ export const useTaskStore = create((set, get) => ({
     const token = get().token || localStorage.getItem('token');
     const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
     try {
-      const response = await fetch('/api/tasks?project_id=global', { headers });
+      const response = await fetch('/api/tasks/?project_id=global', { headers });
       if (response.ok) {
         const data = await response.json();
         set({ tasks: data });
@@ -138,7 +138,7 @@ export const useTaskStore = create((set, get) => ({
     const token = get().token || localStorage.getItem('token');
     if (!token) return;
     try {
-      const response = await fetch('/api/team', {
+      const response = await fetch('/api/team/', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
@@ -231,7 +231,7 @@ export const useTaskStore = create((set, get) => ({
     try {
       const token = get().token || localStorage.getItem('token');
       const taskPayload = { ...task, id: localId };
-      const response = await fetch('/api/tasks', {
+      const response = await fetch('/api/tasks/', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
