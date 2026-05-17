@@ -8,17 +8,56 @@ function cn(...inputs) {
   return twMerge(clsx(inputs));
 }
 
-export const AddTaskModal = ({ isOpen, onClose }) => {
+export const AddTaskModal = () => {
   const addTask = useTaskStore((state) => state.addTask);
+  const updateTask = useTaskStore((state) => state.updateTask);
+  const isOpen = useTaskStore((state) => state.isAddTaskModalOpen);
+  const onClose = useTaskStore((state) => state.closeAddTaskModal);
+  const defaultStatus = useTaskStore((state) => state.defaultNewTaskStatus);
+  const editingTask = useTaskStore((state) => state.editingTask);
+  const users = useTaskStore((state) => state.users);
+  const currentUser = useTaskStore((state) => state.currentUser);
   
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    status: 'To Do',
+    status: defaultStatus || 'TO_DO',
     priority: 'Средний',
+    assigneeId: currentUser?.id || '1',
     tags: [],
     deadline: new Date().toISOString().split('T')[0]
   });
+
+  // Сброс формы при открытии модалки, установка нужного статуса колонки
+  React.useEffect(() => {
+    if (isOpen) {
+      if (editingTask) {
+        setFormData({
+          title: editingTask.title || '',
+          description: editingTask.description || '',
+          status: editingTask.status || 'TO_DO',
+          priority: editingTask.priority || 'Средний',
+          assigneeId: editingTask.assigneeId || '1',
+          tags: editingTask.tags || [],
+          deadline: editingTask.deadline 
+            ? new Date(editingTask.deadline).toISOString().split('T')[0] 
+            : new Date().toISOString().split('T')[0]
+        });
+        setTagInput('');
+      } else {
+        setFormData({
+          title: '',
+          description: '',
+          status: defaultStatus || 'TO_DO',
+          priority: 'Средний',
+          assigneeId: currentUser?.id || '1',
+          tags: [],
+          deadline: new Date().toISOString().split('T')[0]
+        });
+        setTagInput('');
+      }
+    }
+  }, [isOpen, defaultStatus, editingTask]);
 
   const [tagInput, setTagInput] = useState('');
 
@@ -28,16 +67,13 @@ export const AddTaskModal = ({ isOpen, onClose }) => {
     e.preventDefault();
     if (!formData.title.trim()) return;
     
-    addTask(formData);
+    if (editingTask) {
+      updateTask(editingTask.id, formData);
+    } else {
+      addTask(formData);
+    }
+    
     onClose();
-    setFormData({
-      title: '',
-      description: '',
-      status: 'To Do',
-      priority: 'Средний',
-      tags: [],
-      deadline: new Date().toISOString().split('T')[0]
-    });
   };
 
   const addTag = (e) => {
@@ -66,7 +102,9 @@ export const AddTaskModal = ({ isOpen, onClose }) => {
       {/* Modal */}
       <div className="relative bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
-          <h2 className="text-lg font-bold text-zinc-900">Новая задача</h2>
+          <h2 className="text-lg font-bold text-zinc-900">
+            {editingTask ? 'Редактировать задачу' : 'Новая задача'}
+          </h2>
           <button 
             onClick={onClose}
             className="p-2 hover:bg-gray-200 rounded-full transition-colors text-gray-400 hover:text-gray-600"
@@ -108,10 +146,10 @@ export const AddTaskModal = ({ isOpen, onClose }) => {
                 value={formData.status}
                 onChange={(e) => setFormData({...formData, status: e.target.value})}
               >
-                <option value="To Do">В бэклоге</option>
-                <option value="Ready">К выполнению</option>
-                <option value="In Progress">В работе</option>
-                <option value="Done">Готово</option>
+                <option value="TO_DO">В бэклоге</option>
+                <option value="READY">К выполнению</option>
+                <option value="IN_PROGRESS">В работе</option>
+                <option value="DONE">Готово</option>
               </select>
             </div>
             <div className="space-y-1">
@@ -129,14 +167,28 @@ export const AddTaskModal = ({ isOpen, onClose }) => {
             </div>
           </div>
 
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-gray-500 uppercase">Дедлайн</label>
-            <input 
-              type="date"
-              className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-              value={formData.deadline}
-              onChange={(e) => setFormData({...formData, deadline: e.target.value})}
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-gray-500 uppercase">Дедлайн</label>
+              <input 
+                type="date"
+                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                value={formData.deadline}
+                onChange={(e) => setFormData({...formData, deadline: e.target.value})}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-gray-500 uppercase">Исполнитель</label>
+              <select 
+                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none appearance-none cursor-pointer"
+                value={formData.assigneeId}
+                onChange={(e) => setFormData({...formData, assigneeId: e.target.value})}
+              >
+                {users.map(user => (
+                  <option key={user.id} value={user.id}>{user.name}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div className="space-y-1">
@@ -173,7 +225,7 @@ export const AddTaskModal = ({ isOpen, onClose }) => {
               type="submit"
               className="flex-1 px-4 py-2.5 bg-zinc-900 text-white font-bold rounded-xl hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-200"
             >
-              Создать задачу
+              {editingTask ? 'Сохранить изменения' : 'Создать задачу'}
             </button>
           </div>
         </form>

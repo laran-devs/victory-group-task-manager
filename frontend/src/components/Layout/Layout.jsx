@@ -8,18 +8,23 @@ import {
   UserCircle,
   Search,
   Plus,
-  Filter
+  Filter,
+  LogOut
 } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { AddTaskModal } from '../AddTaskModal';
+import { useTaskStore } from '../../store/useTaskStore';
 
 function cn(...inputs) {
   return twMerge(clsx(inputs));
 }
 
 const Sidebar = () => {
+  const currentUser = useTaskStore((state) => state.currentUser);
+  const logout = useTaskStore((state) => state.logout);
+
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
     { icon: Briefcase, label: 'Projects', path: '/projects' },
@@ -56,20 +61,30 @@ const Sidebar = () => {
 
       <div className="mt-auto p-6 border-t border-zinc-800">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-zinc-700 flex items-center justify-center overflow-hidden">
-            <img src="https://ui-avatars.com/api/?name=Ivan+Ivanov&background=4f46e5&color=fff" alt="Profile" />
+          <div className="w-10 h-10 rounded-full bg-zinc-700 flex items-center justify-center overflow-hidden shrink-0">
+            <img src={currentUser?.avatar} alt="Profile" />
           </div>
-          <div className="flex flex-col">
-            <span className="text-sm font-semibold">Иванов И.И.</span>
-            <span className="text-xs text-zinc-500">Тимлид</span>
+          <div className="flex flex-col flex-1 overflow-hidden">
+            <span className="text-sm font-semibold truncate">{currentUser?.name}</span>
+            <span className="text-xs text-zinc-500 truncate">Сотрудник</span>
           </div>
+          <button 
+            onClick={logout}
+            className="p-2 text-zinc-400 hover:text-red-400 hover:bg-zinc-800 rounded-lg transition-colors shrink-0"
+            title="Выйти"
+          >
+            <LogOut size={18} />
+          </button>
         </div>
       </div>
     </aside>
   );
 };
 
-const TopBar = ({ onAddTask }) => {
+const TopBar = ({ onAddTask, onFeatureNotReady }) => {
+  const viewMode = useTaskStore((state) => state.viewMode);
+  const setViewMode = useTaskStore((state) => state.setViewMode);
+
   return (
     <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8 sticky top-0 z-40">
       <div className="flex items-center gap-4 flex-1">
@@ -79,18 +94,47 @@ const TopBar = ({ onAddTask }) => {
             type="text" 
             placeholder="Поиск задач..." 
             className="w-full pl-10 pr-4 py-2 bg-gray-100 border-transparent rounded-lg focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all text-sm"
+            value={useTaskStore((state) => state.searchQuery)}
+            onChange={(e) => useTaskStore.getState().setSearchQuery(e.target.value)}
           />
         </div>
-        <button className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors text-sm font-medium">
-          <Filter size={18} />
-          Фильтры
-        </button>
+        
+        <div className="flex items-center bg-gray-100 rounded-lg px-2 text-sm font-medium text-gray-600">
+          <Filter size={16} className="mr-2" />
+          <select 
+            className="bg-transparent border-none py-2 focus:ring-0 outline-none cursor-pointer text-sm font-semibold"
+            value={useTaskStore((state) => state.filterPriority)}
+            onChange={(e) => useTaskStore.getState().setFilterPriority(e.target.value)}
+          >
+            <option value="all">Все приоритеты</option>
+            <option value="Критический">Критический</option>
+            <option value="Высокий">Высокий</option>
+            <option value="Средний">Средний</option>
+            <option value="Низкий">Низкий</option>
+          </select>
+        </div>
       </div>
 
       <div className="flex items-center gap-4">
         <div className="flex bg-gray-100 p-1 rounded-lg">
-          <button className="px-3 py-1.5 bg-white shadow-sm rounded-md text-xs font-semibold text-zinc-900">Доска</button>
-          <button className="px-3 py-1.5 text-xs font-semibold text-zinc-500 hover:text-zinc-700">Список</button>
+          <button 
+            onClick={() => setViewMode('board')}
+            className={cn(
+              "px-3 py-1.5 rounded-md text-xs font-semibold transition-all", 
+              viewMode === 'board' ? "bg-white shadow-sm text-zinc-900" : "text-zinc-500 hover:text-zinc-700"
+            )}
+          >
+            Доска
+          </button>
+          <button 
+            onClick={() => setViewMode('list')}
+            className={cn(
+              "px-3 py-1.5 rounded-md text-xs font-semibold transition-all", 
+              viewMode === 'list' ? "bg-white shadow-sm text-zinc-900" : "text-zinc-500 hover:text-zinc-700"
+            )}
+          >
+            Список
+          </button>
         </div>
         <button 
           onClick={onAddTask}
@@ -105,22 +149,23 @@ const TopBar = ({ onAddTask }) => {
 };
 
 export const MainLayout = ({ children }) => {
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const openAddTaskModal = useTaskStore((state) => state.openAddTaskModal);
+  const addNotification = useTaskStore((state) => state.addNotification);
 
   return (
     <div className="min-h-screen bg-gray-100">
       <Sidebar />
       <div className="pl-64">
-        <TopBar onAddTask={() => setIsModalOpen(true)} />
+        <TopBar 
+          onAddTask={() => openAddTaskModal('TO_DO')} 
+          onFeatureNotReady={(feature) => addNotification(`${feature} в разработке`, 'info')}
+        />
         <main className="p-8">
           {children}
         </main>
       </div>
 
-      <AddTaskModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-      />
+      <AddTaskModal />
     </div>
   );
 };

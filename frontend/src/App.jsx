@@ -6,18 +6,27 @@ import { Projects, Clients } from './pages/OtherPages';
 import { NotificationToast } from './components/NotificationToast';
 import { simulateIncomingEvents } from './services/socket';
 import { useTaskStore } from './store/useTaskStore';
+import { LoginScreen } from './pages/LoginScreen';
 
 function App() {
   const handleServerEvent = useTaskStore((state) => state.handleServerEvent);
+  const fetchTasks = useTaskStore((state) => state.fetchTasks);
+  const currentUser = useTaskStore((state) => state.currentUser);
 
   useEffect(() => {
+    fetchTasks();
+
     // Initialize WebSocket simulation
     const cleanup = simulateIncomingEvents((event) => {
       handleServerEvent(event);
     });
 
     return cleanup;
-  }, [handleServerEvent]);
+  }, [handleServerEvent, fetchTasks]);
+
+  if (!currentUser) {
+    return <LoginScreen />;
+  }
 
   return (
     <Router>
