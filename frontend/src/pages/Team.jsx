@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Mail, Shield, Briefcase, UserPlus } from 'lucide-react';
+import { Search, Mail, Shield, Briefcase } from 'lucide-react';
 import { useTaskStore } from '../store/useTaskStore';
 
 export const Team = () => {
@@ -12,7 +12,7 @@ export const Team = () => {
   );
 
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="p-8 max-w-7xl mx-auto w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-black text-zinc-900 tracking-tight">Команда</h1>
@@ -29,10 +29,6 @@ export const Team = () => {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <button className="flex items-center gap-2 bg-zinc-900 text-white px-5 py-2.5 rounded-xl hover:bg-zinc-800 transition-colors text-sm font-bold shadow-md shadow-zinc-200">
-            <UserPlus size={18} />
-            Пригласить
-          </button>
         </div>
       </div>
 
