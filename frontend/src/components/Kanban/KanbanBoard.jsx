@@ -30,10 +30,10 @@ export const KanbanBoard = () => {
   );
 
   const columns = [
-    { title: 'В бэклоге', status: 'To Do' },
-    { title: 'К выполнению', status: 'Ready' },
-    { title: 'В работе', status: 'In Progress' },
-    { title: 'Готово', status: 'Done' }
+    { title: 'В бэклоге', status: 'TO_DO' },
+    { title: 'К выполнению', status: 'READY' },
+    { title: 'В работе', status: 'IN_PROGRESS' },
+    { title: 'Готово', status: 'DONE' }
   ];
 
   const handleDragEnd = (event) => {
