@@ -1,6 +1,33 @@
 import { create } from 'zustand';
 import { arrayMove } from '@dnd-kit/sortable';
 import initialTasks from '../mocks/tasks.json';
+import { useProjectStore } from './useProjectStore';
+
+const isValidUUID = (uuid) => {
+  if (!uuid) return false;
+  const regex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return regex.test(uuid);
+};
+
+const priorityRuToEn = (priority) => {
+  switch (priority) {
+    case 'Низкий': return 'LOW';
+    case 'Средний': return 'MEDIUM';
+    case 'Высокий': return 'HIGH';
+    case 'Критический': return 'CRITICAL';
+    default: return 'MEDIUM';
+  }
+};
+
+const priorityEnToRu = (priority) => {
+  switch (priority) {
+    case 'LOW': return 'Низкий';
+    case 'MEDIUM': return 'Средний';
+    case 'HIGH': return 'Высокий';
+    case 'CRITICAL': return 'Критический';
+    default: return priority || 'Средний';
+  }
+};
 
 export const useTaskStore = create((set, get) => ({
   tasks: [],
@@ -40,11 +67,18 @@ export const useTaskStore = create((set, get) => ({
   }),
   
   fetchTasks: async () => {
+    const selectedProject = useProjectStore.getState().selectedProject;
+    const projectId = selectedProject ? selectedProject.id : 'global';
     try {
-      const response = await fetch('/api/tasks?project_id=global');
+      const response = await fetch(`/api/tasks/?project_id=${projectId}`);
       if (response.ok) {
         const data = await response.json();
-        set({ tasks: data });
+        const mappedData = data.map(task => ({
+          ...task,
+          priority: priorityEnToRu(task.priority),
+          assigneeId: task.assignee_id || '1'
+        }));
+        set({ tasks: mappedData });
       } else {
         throw new Error('Server returned ' + response.status);
       }
@@ -107,9 +141,13 @@ export const useTaskStore = create((set, get) => ({
   },
 
   addTask: async (task) => {
+    const selectedProject = useProjectStore.getState().selectedProject;
+    const projectId = task.project_id || (selectedProject ? selectedProject.id : null);
+    
     const localId = task.id || `VT-${Math.floor(Math.random() * 1000)}`;
     const tempTask = {
       ...task,
+      project_id: projectId,
       id: localId,
       createdAt: task.createdAt || new Date().toISOString()
     };
@@ -120,16 +158,29 @@ export const useTaskStore = create((set, get) => ({
     }));
 
     try {
-      const taskPayload = { ...task, id: localId };
-      const response = await fetch('/api/tasks', {
+      const taskPayload = { 
+        title: task.title,
+        description: task.description || '',
+        status: task.status || 'TO_DO',
+        priority: priorityRuToEn(task.priority),
+        deadline: task.deadline,
+        id: localId, 
+        project_id: isValidUUID(projectId) ? projectId : null,
+      };
+      const response = await fetch('/api/tasks/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(taskPayload)
       });
       if (response.ok) {
         const savedTask = await response.json();
+        const mappedTask = {
+          ...savedTask,
+          priority: priorityEnToRu(savedTask.priority),
+          assigneeId: savedTask.assignee_id || '1'
+        };
         set((state) => ({
-          tasks: state.tasks.map(t => t.id === localId ? savedTask : t)
+          tasks: state.tasks.map(t => t.id === localId ? { ...tempTask, ...mappedTask, assigneeId: tempTask.assigneeId } : t)
         }));
       }
     } catch (error) {
@@ -149,9 +200,25 @@ export const useTaskStore = create((set, get) => ({
 
     switch (eventType) {
       case 'TASK_UPDATED':
-        newTasks = newTasks.map(t => 
-          t.id === payload.id ? { ...t, ...payload } : t
-        );
+        const selectedProj = useProjectStore.getState().selectedProject;
+        if (selectedProj && payload.project_id !== selectedProj.id) {
+          // Remove from list if it no longer belongs to the filtered project
+          newTasks = newTasks.filter(t => t.id !== payload.id);
+        } else {
+          const mappedPayload = {
+            ...payload,
+            priority: priorityEnToRu(payload.priority),
+            assigneeId: payload.assignee_id || '1'
+          };
+          const exists = newTasks.find(t => t.id === payload.id);
+          if (exists) {
+            newTasks = newTasks.map(t => 
+              t.id === payload.id ? { ...t, ...mappedPayload } : t
+            );
+          } else if (payload.title && (!selectedProj || payload.project_id === selectedProj.id)) {
+            newTasks = [mappedPayload, ...newTasks];
+          }
+        }
         message = `Задача ${payload.id} обновлена: ${payload.status}`;
         break;
       
@@ -165,10 +232,18 @@ export const useTaskStore = create((set, get) => ({
         break;
 
       case 'NEW_TASK':
-        if (!newTasks.find(t => t.id === payload.id)) {
-          newTasks = [payload, ...newTasks];
-          message = `Добавлена новая задача: ${payload.title}`;
-          type = 'success';
+        if (payload.title && !newTasks.find(t => t.id === payload.id)) {
+          const selectedProject = useProjectStore.getState().selectedProject;
+          if (!selectedProject || payload.project_id === selectedProject.id) {
+            const mappedPayload = {
+              ...payload,
+              priority: priorityEnToRu(payload.priority),
+              assigneeId: payload.assignee_id || '1'
+            };
+            newTasks = [mappedPayload, ...newTasks];
+            message = `Добавлена новая задача: ${payload.title}`;
+            type = 'success';
+          }
         }
         break;
 
@@ -212,18 +287,44 @@ export const useTaskStore = create((set, get) => ({
   },
 
   updateTask: async (taskId, updatedFields) => {
+    // Оптимистичное обновление
     set((state) => ({
       tasks: state.tasks.map((task) => 
         task.id === taskId ? { ...task, ...updatedFields } : task
       )
     }));
 
+    // Подготовка payload с правильными ключами для бэкенда (избегая невалидных UUID и лишних полей)
+    const payload = {};
+    if ('title' in updatedFields) payload.title = updatedFields.title;
+    if ('description' in updatedFields) payload.description = updatedFields.description;
+    if ('status' in updatedFields) payload.status = updatedFields.status;
+    if ('priority' in updatedFields) payload.priority = priorityRuToEn(updatedFields.priority);
+    if ('deadline' in updatedFields) payload.deadline = updatedFields.deadline;
+    
+    if ('project_id' in updatedFields) {
+      payload.project_id = isValidUUID(updatedFields.project_id) ? updatedFields.project_id : null;
+    }
+
     try {
-      await fetch(`/api/tasks/${taskId}`, {
+      const response = await fetch(`/api/tasks/${taskId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedFields)
+        body: JSON.stringify(payload)
       });
+      if (response.ok) {
+        const savedTask = await response.json();
+        const mappedTask = {
+          ...savedTask,
+          priority: priorityEnToRu(savedTask.priority),
+          assigneeId: savedTask.assignee_id || '1'
+        };
+        set((state) => ({
+          tasks: state.tasks.map(t => 
+            t.id === taskId ? { ...t, ...mappedTask, assigneeId: t.assigneeId } : t
+          )
+        }));
+      }
     } catch (error) {
       console.error('Failed to update task:', error);
     }

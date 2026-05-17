@@ -1,16 +1,29 @@
+import React, { useEffect } from 'react';
 import { KanbanBoard } from '../components/Kanban/KanbanBoard';
 import { TaskListView } from '../components/TaskListView';
 import { useTaskStore } from '../store/useTaskStore';
+import { useProjectStore } from '../store/useProjectStore';
 
 const Dashboard = () => {
   const viewMode = useTaskStore((state) => state.viewMode);
   const currentUser = useTaskStore((state) => state.currentUser);
+  const fetchTasks = useTaskStore((state) => state.fetchTasks);
+  const selectedProject = useProjectStore((state) => state.selectedProject);
+
+  useEffect(() => {
+    fetchTasks();
+  }, [fetchTasks, selectedProject]);
+
   return (
     <div>
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-black text-zinc-900 m-0 mb-1">Задачи проекта</h1>
-          <p className="text-gray-500 text-sm">Управление рабочим процессом Victory Group</p>
+          <h1 className="text-2xl font-black text-zinc-900 m-0 mb-1">
+            {selectedProject ? `Задачи проекта: ${selectedProject.name}` : 'Все задачи компании'}
+          </h1>
+          <p className="text-gray-500 text-sm">
+            {selectedProject ? selectedProject.description || 'Управление рабочим процессом' : 'Управление рабочим процессом Victory Group'}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <div className="flex -space-x-2">

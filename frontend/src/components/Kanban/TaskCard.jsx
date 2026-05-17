@@ -40,7 +40,7 @@ export const TaskCard = ({ task }) => {
   const openAddTaskModal = useTaskStore((state) => state.openAddTaskModal);
   const users = useTaskStore((state) => state.users);
   
-  const assignee = users.find(u => u.id === task.assigneeId) || users[0];
+  const assignee = users.find(u => u.id === task.assigneeId || u.id === task.assignee_id) || users[0];
   
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef(null);
@@ -79,7 +79,7 @@ export const TaskCard = ({ task }) => {
     >
       <div className="flex items-start justify-between mb-3">
         <div className="flex flex-wrap gap-1.5">
-          {task.tags.map(tag => (
+          {(task.tags || []).map(tag => (
             <span key={tag} className="text-[10px] font-semibold text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded">
               {tag}
             </span>
@@ -148,7 +148,9 @@ export const TaskCard = ({ task }) => {
           <div className="flex items-center gap-1 text-gray-400">
             <Calendar size={12} />
             <span className="text-[10px] font-medium">
-              {new Date(task.deadline).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
+              {task.deadline 
+                ? new Date(task.deadline).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })
+                : 'Без срока'}
             </span>
           </div>
           <PriorityBadge priority={task.priority} />

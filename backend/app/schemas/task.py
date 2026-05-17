@@ -9,7 +9,7 @@ class TaskBase(BaseModel):
     description: Optional[str] = None
     status: TaskStatus = TaskStatus.TO_DO
     priority: TaskPriority = TaskPriority.MEDIUM
-    project_id: UUID
+    project_id: Optional[UUID] = None
     assignee_id: Optional[UUID] = None
     vdl_event_id: Optional[UUID] = None
     deadline: Optional[datetime] = None
@@ -22,6 +22,7 @@ class TaskUpdate(BaseModel):
     description: Optional[str] = None
     status: Optional[TaskStatus] = None
     priority: Optional[TaskPriority] = None
+    project_id: Optional[UUID] = None
     assignee_id: Optional[UUID] = None
     deadline: Optional[datetime] = None
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, 
   Briefcase, 
@@ -9,13 +9,15 @@ import {
   Search,
   Plus,
   Filter,
-  LogOut
+  LogOut,
+  X
 } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { AddTaskModal } from '../AddTaskModal';
 import { useTaskStore } from '../../store/useTaskStore';
+import { useProjectStore } from '../../store/useProjectStore';
 
 function cn(...inputs) {
   return twMerge(clsx(inputs));
@@ -28,7 +30,6 @@ const Sidebar = () => {
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
     { icon: Briefcase, label: 'Projects', path: '/projects' },
-    { icon: CheckSquare, label: 'Tasks', path: '/tasks' },
     { icon: Users, label: 'Team', path: '/team' },
     { icon: BarChart3, label: 'Reports', path: '/reports' },
     { icon: UserCircle, label: 'Clients', path: '/clients' },
@@ -84,11 +85,47 @@ const Sidebar = () => {
 const TopBar = ({ onAddTask, onFeatureNotReady }) => {
   const viewMode = useTaskStore((state) => state.viewMode);
   const setViewMode = useTaskStore((state) => state.setViewMode);
+  const fetchTasks = useTaskStore((state) => state.fetchTasks);
+  const selectedProject = useProjectStore((state) => state.selectedProject);
+  const setSelectedProject = useProjectStore((state) => state.setSelectedProject);
+  const projects = useProjectStore((state) => state.projects);
+  const fetchProjects = useProjectStore((state) => state.fetchProjects);
+
+  useEffect(() => {
+    if (projects.length === 0) {
+      fetchProjects();
+    }
+  }, [projects.length, fetchProjects]);
 
   return (
     <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8 sticky top-0 z-40">
       <div className="flex items-center gap-4 flex-1">
-        <div className="relative w-96">
+        <div className="flex items-center bg-gray-100 rounded-lg px-3 py-1.5 text-sm font-semibold text-gray-700">
+          <Briefcase size={16} className="mr-2 text-indigo-500 shrink-0" />
+          <select 
+            className="bg-transparent border-none py-0 focus:ring-0 outline-none cursor-pointer text-sm font-bold text-zinc-700 pr-2 max-w-[180px] truncate"
+            value={selectedProject ? selectedProject.id : 'global'}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (val === 'global') {
+                setSelectedProject(null);
+              } else {
+                const found = projects.find(p => p.id === val);
+                if (found) setSelectedProject(found);
+              }
+              setTimeout(() => {
+                fetchTasks();
+              }, 0);
+            }}
+          >
+            <option value="global">Все проекты</option>
+            {projects.map(proj => (
+              <option key={proj.id} value={proj.id}>{proj.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="relative w-72">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
           <input 
             type="text" 

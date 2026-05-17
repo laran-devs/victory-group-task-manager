@@ -1,22 +1,32 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from typing import List
-
+from typing import List, Optional
+from app.models.project import Project as ProjectModel
+from app.models.user import User as UserModel
 from app.api import dependencies
 from app.models.task import Task as TaskModel
 from app.schemas.task import Task, TaskCreate, TaskUpdate
 from app.api.websockets import manager
+import uuid
 
 router = APIRouter()
 
 @router.get("/", response_model=List[Task])
 async def read_tasks(
+    project_id: Optional[str] = None,
     skip: int = 0,
     limit: int = 100,
     db: AsyncSession = Depends(dependencies.get_db)
 ):
-    result = await db.execute(select(TaskModel).offset(skip).limit(limit))
+    query = select(TaskModel)
+    if project_id and project_id != "global":
+        try:
+            project_uuid = uuid.UUID(project_id)
+            query = query.filter(TaskModel.project_id == project_uuid)
+        except ValueError:
+            pass
+    result = await db.execute(query.offset(skip).limit(limit))
     tasks = result.scalars().all()
     return tasks
 
@@ -25,7 +35,45 @@ async def create_task(
     task_in: TaskCreate,
     db: AsyncSession = Depends(dependencies.get_db)
 ):
-    db_task = TaskModel(**task_in.model_dump())
+    task_data = task_in.model_dump()
+    
+    # If project_id is not specified, resolve/create a default project
+    if not task_data.get("project_id"):
+        # Find any existing project
+        proj_result = await db.execute(select(ProjectModel))
+        project = proj_result.scalars().first()
+        
+        if not project:
+            # We need a user to own the project
+            user_result = await db.execute(select(UserModel))
+            user = user_result.scalars().first()
+            if not user:
+                from app.core import security
+                user = UserModel(
+                    id=uuid.uuid4(),
+                    email="ivan@victory.group",
+                    hashed_password=security.get_password_hash("password"),
+                    full_name="Иван Иванов",
+                    position="Разработчик"
+                )
+                db.add(user)
+                await db.commit()
+                await db.refresh(user)
+            
+            # Create a default project
+            project = ProjectModel(
+                id=uuid.uuid4(),
+                name="Основной проект",
+                description="Дефолтный проект Victory Group",
+                owner_id=user.id
+            )
+            db.add(project)
+            await db.commit()
+            await db.refresh(project)
+            
+        task_data["project_id"] = project.id
+
+    db_task = TaskModel(**task_data)
     db.add(db_task)
     try:
         await db.commit()
@@ -35,12 +83,12 @@ async def create_task(
         raise HTTPException(status_code=400, detail=str(e))
     
     # Broadcast creation via WebSockets
-    task_data = Task.model_validate(db_task).model_dump(mode="json")
+    task_data_validated = Task.model_validate(db_task).model_dump(mode="json")
     await manager.broadcast_to_project(
         str(db_task.project_id),
         {
             "event_type": "NEW_TASK",
-            "payload": task_data
+            "payload": task_data_validated
         }
     )
     return db_task

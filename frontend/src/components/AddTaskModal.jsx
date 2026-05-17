@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, AlertCircle } from 'lucide-react';
 import { useTaskStore } from '../store/useTaskStore';
+import { useProjectStore } from '../store/useProjectStore';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -18,6 +19,10 @@ export const AddTaskModal = () => {
   const users = useTaskStore((state) => state.users);
   const currentUser = useTaskStore((state) => state.currentUser);
   
+  const projects = useProjectStore((state) => state.projects);
+  const fetchProjects = useProjectStore((state) => state.fetchProjects);
+  const selectedProject = useProjectStore((state) => state.selectedProject);
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -25,8 +30,16 @@ export const AddTaskModal = () => {
     priority: 'Средний',
     assigneeId: currentUser?.id || '1',
     tags: [],
-    deadline: new Date().toISOString().split('T')[0]
+    deadline: new Date().toISOString().split('T')[0],
+    project_id: selectedProject?.id || ''
   });
+
+  // Fetch projects on load if empty
+  React.useEffect(() => {
+    if (isOpen && projects.length === 0) {
+      fetchProjects();
+    }
+  }, [isOpen, projects.length, fetchProjects]);
 
   // Сброс формы при открытии модалки, установка нужного статуса колонки
   React.useEffect(() => {
@@ -37,11 +50,12 @@ export const AddTaskModal = () => {
           description: editingTask.description || '',
           status: editingTask.status || 'TO_DO',
           priority: editingTask.priority || 'Средний',
-          assigneeId: editingTask.assigneeId || '1',
+          assigneeId: editingTask.assigneeId || editingTask.assignee_id || '1',
           tags: editingTask.tags || [],
           deadline: editingTask.deadline 
             ? new Date(editingTask.deadline).toISOString().split('T')[0] 
-            : new Date().toISOString().split('T')[0]
+            : new Date().toISOString().split('T')[0],
+          project_id: editingTask.project_id || ''
         });
         setTagInput('');
       } else {
@@ -52,12 +66,13 @@ export const AddTaskModal = () => {
           priority: 'Средний',
           assigneeId: currentUser?.id || '1',
           tags: [],
-          deadline: new Date().toISOString().split('T')[0]
+          deadline: new Date().toISOString().split('T')[0],
+          project_id: selectedProject?.id || (projects[0]?.id || '')
         });
         setTagInput('');
       }
     }
-  }, [isOpen, defaultStatus, editingTask]);
+  }, [isOpen, defaultStatus, editingTask, selectedProject, projects]);
 
   const [tagInput, setTagInput] = useState('');
 
@@ -136,6 +151,21 @@ export const AddTaskModal = () => {
               value={formData.description}
               onChange={(e) => setFormData({...formData, description: e.target.value})}
             />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-gray-500 uppercase">Проект <span className="text-red-500">*</span></label>
+            <select 
+              required
+              className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer text-zinc-800"
+              value={formData.project_id}
+              onChange={(e) => setFormData({...formData, project_id: e.target.value})}
+            >
+              <option value="" disabled>Выберите проект...</option>
+              {projects.map(proj => (
+                <option key={proj.id} value={proj.id}>{proj.name}</option>
+              ))}
+            </select>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
