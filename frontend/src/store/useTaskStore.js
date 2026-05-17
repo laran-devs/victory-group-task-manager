@@ -47,7 +47,10 @@ export const useTaskStore = create((set) => ({
   })),
 
   handleServerEvent: (event) => set((state) => {
-    const { type, payload } = event;
+    const eventType = event.event_type || event.type;
+    const { payload } = event;
+    if (!eventType || !payload) return state;
+
     let newTasks = [...state.tasks];
     let newNotification = { 
       id: Date.now(), 
@@ -55,19 +58,21 @@ export const useTaskStore = create((set) => ({
       message: '' 
     };
 
-    switch (type) {
+    switch (eventType) {
       case 'TASK_UPDATED':
         newTasks = newTasks.map(t => 
-          t.id === payload.id ? { ...t, status: payload.status } : t
+          t.id === payload.id ? { ...t, ...payload } : t
         );
         newNotification.message = `Задача ${payload.id} обновлена: ${payload.status}`;
         break;
       
       case 'VDL_ALERT':
+        // Match either by task_id in the event, or default to the event's payload.id
+        const targetTaskId = payload.task_id || payload.id;
         newTasks = newTasks.map(t => 
-          t.id === payload.id ? { ...t, vdlEvent: payload.vdlEvent } : t
+          t.id === targetTaskId ? { ...t, vdlEvent: payload } : t
         );
-        newNotification.message = `Критическое событие аналитики по задаче ${payload.id}`;
+        newNotification.message = `Критическое событие аналитики: ${payload.message}`;
         newNotification.type = 'warning';
         break;
 
@@ -76,6 +81,15 @@ export const useTaskStore = create((set) => ({
           newTasks = [payload, ...newTasks];
           newNotification.message = `Добавлена новая задача: ${payload.title}`;
           newNotification.type = 'success';
+        }
+        break;
+
+      case 'TASK_DELETED':
+        const deletedId = payload.task_id || payload.id;
+        if (deletedId) {
+          newTasks = newTasks.filter(t => t.id !== deletedId);
+          newNotification.message = `Задача ${deletedId} удалена`;
+          newNotification.type = 'info';
         }
         break;
       
