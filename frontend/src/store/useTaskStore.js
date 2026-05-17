@@ -5,9 +5,9 @@ import { arrayMove } from '@dnd-kit/sortable';
 export const useTaskStore = create((set) => ({
   tasks: initialTasks,
   notifications: [],
-  
+
   moveTask: (taskId, newStatus) => set((state) => ({
-    tasks: state.tasks.map((task) => 
+    tasks: state.tasks.map((task) =>
       task.id === taskId ? { ...task, status: newStatus } : task
     )
   })),
@@ -26,53 +26,48 @@ export const useTaskStore = create((set) => ({
 
     const updatedTasks = [...state.tasks];
     updatedTasks[taskIndex] = { ...updatedTasks[taskIndex], status: overStatus };
-    
+
     if (overId && overId !== taskId) {
       const overIndex = state.tasks.findIndex((t) => t.id === overId);
       return { tasks: arrayMove(updatedTasks, taskIndex, overIndex) };
     }
-    
+
     return { tasks: updatedTasks };
   }),
 
   addTask: (task) => set((state) => ({
     tasks: [
-      { 
-        ...task, 
-        id: task.id || `VT-${Math.floor(Math.random() * 1000)}`, 
-        createdAt: task.createdAt || new Date().toISOString() 
-      }, 
+      {
+        ...task,
+        id: task.id || `VT-${Math.floor(Math.random() * 1000)}`,
+        createdAt: task.createdAt || new Date().toISOString()
+      },
       ...state.tasks
     ]
   })),
 
   handleServerEvent: (event) => set((state) => {
-    const eventType = event.event_type || event.type;
-    const { payload } = event;
-    if (!eventType || !payload) return state;
-
+    const { type, payload } = event;
     let newTasks = [...state.tasks];
-    let newNotification = { 
-      id: Date.now(), 
-      type: 'info', 
-      message: '' 
+    let newNotification = {
+      id: Date.now(),
+      type: 'info',
+      message: ''
     };
 
-    switch (eventType) {
+    switch (type) {
       case 'TASK_UPDATED':
-        newTasks = newTasks.map(t => 
-          t.id === payload.id ? { ...t, ...payload } : t
+        newTasks = newTasks.map(t =>
+          t.id === payload.id ? { ...t, status: payload.status } : t
         );
         newNotification.message = `Задача ${payload.id} обновлена: ${payload.status}`;
         break;
-      
+
       case 'VDL_ALERT':
-        // Match either by task_id in the event, or default to the event's payload.id
-        const targetTaskId = payload.task_id || payload.id;
-        newTasks = newTasks.map(t => 
-          t.id === targetTaskId ? { ...t, vdlEvent: payload } : t
+        newTasks = newTasks.map(t =>
+          t.id === payload.id ? { ...t, vdlEvent: payload.vdlEvent } : t
         );
-        newNotification.message = `Критическое событие аналитики: ${payload.message}`;
+        newNotification.message = `Критическое событие аналитики по задаче ${payload.id}`;
         newNotification.type = 'warning';
         break;
 
@@ -84,20 +79,11 @@ export const useTaskStore = create((set) => ({
         }
         break;
 
-      case 'TASK_DELETED':
-        const deletedId = payload.task_id || payload.id;
-        if (deletedId) {
-          newTasks = newTasks.filter(t => t.id !== deletedId);
-          newNotification.message = `Задача ${deletedId} удалена`;
-          newNotification.type = 'info';
-        }
-        break;
-      
       default:
         return state;
     }
 
-    return { 
+    return {
       tasks: newTasks,
       notifications: [...state.notifications, newNotification]
     };
@@ -112,7 +98,7 @@ export const useTaskStore = create((set) => ({
   })),
 
   updateTask: (taskId, updatedFields) => set((state) => ({
-    tasks: state.tasks.map((task) => 
+    tasks: state.tasks.map((task) =>
       task.id === taskId ? { ...task, ...updatedFields } : task
     )
   }))
