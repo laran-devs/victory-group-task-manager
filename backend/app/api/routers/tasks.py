@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from typing import List, Optional
+from sqlalchemy.orm import joinedload
+from typing import List, Optional, Union
+from uuid import UUID
 from app.models.project import Project as ProjectModel
 from app.models.user import User as UserModel
 from app.api import dependencies
@@ -12,20 +14,45 @@ import uuid
 
 router = APIRouter()
 
+async def resolve_assignee_uuid(assignee_id: Optional[Union[UUID, str]], db: AsyncSession) -> Optional[UUID]:
+    if not assignee_id:
+        return None
+    if isinstance(assignee_id, UUID):
+        return assignee_id
+    
+    # Try parsing string to UUID
+    try:
+        return UUID(assignee_id)
+    except ValueError:
+        pass
+
+    # Handle string IDs from frontend mocks ("1", "2", "3" or logins)
+    from app.models.user import User as UserModel
+    if assignee_id in ("1", "ivan"):
+        result = await db.execute(select(UserModel.id).filter(UserModel.email.like("ivan%")))
+        val = result.scalar()
+        if val:
+            return val
+    elif assignee_id in ("3", "petr"):
+        result = await db.execute(select(UserModel.id).filter(UserModel.email.like("petr%")))
+        val = result.scalar()
+        if val:
+            return val
+            
+    # Fallback to the first user in the system if possible, or return None
+    result = await db.execute(select(UserModel.id).limit(1))
+    return result.scalar()
+
 @router.get("/", response_model=List[Task])
 async def read_tasks(
-    project_id: Optional[str] = None,
+    project_id: Optional[str] = "global",
     skip: int = 0,
     limit: int = 100,
     db: AsyncSession = Depends(dependencies.get_db)
 ):
-    query = select(TaskModel)
+    query = select(TaskModel).options(joinedload(TaskModel.assignee), joinedload(TaskModel.vdl_event))
     if project_id and project_id != "global":
-        try:
-            project_uuid = uuid.UUID(project_id)
-            query = query.filter(TaskModel.project_id == project_uuid)
-        except ValueError:
-            pass
+        query = query.filter(TaskModel.project_id == project_id)
     result = await db.execute(query.offset(skip).limit(limit))
     tasks = result.scalars().all()
     return tasks
@@ -35,16 +62,33 @@ async def create_task(
     task_in: TaskCreate,
     db: AsyncSession = Depends(dependencies.get_db)
 ):
-    task_data = task_in.model_dump()
+    task_data = task_in.model_dump(exclude={"id", "assignee_id"})
     
-    # If project_id is not specified, resolve/create a default project
-    if not task_data.get("project_id"):
-        # Find any existing project
+    # Resolve unique task ID
+    if not task_in.id:
+        result = await db.execute(select(TaskModel.id).filter(TaskModel.id.like("VT-%")))
+        ids = result.scalars().all()
+        next_num = 101
+        if ids:
+            numbers = []
+            for t_id in ids:
+                try:
+                    num = int(t_id.split("-")[1])
+                    numbers.append(num)
+                except (IndexError, ValueError):
+                    pass
+            if numbers:
+                next_num = max(numbers) + 1
+        task_id = f"VT-{next_num}"
+    else:
+        task_id = task_in.id
+
+    # Resolve project_id (ensure task belongs to a valid project)
+    project_id = task_data.get("project_id")
+    if not project_id or project_id == "global":
         proj_result = await db.execute(select(ProjectModel))
         project = proj_result.scalars().first()
-        
         if not project:
-            # We need a user to own the project
             user_result = await db.execute(select(UserModel))
             user = user_result.scalars().first()
             if not user:
@@ -59,10 +103,8 @@ async def create_task(
                 db.add(user)
                 await db.commit()
                 await db.refresh(user)
-            
-            # Create a default project
             project = ProjectModel(
-                id=uuid.uuid4(),
+                id=str(uuid.uuid4()),
                 name="Основной проект",
                 description="Дефолтный проект Victory Group",
                 owner_id=user.id
@@ -70,35 +112,49 @@ async def create_task(
             db.add(project)
             await db.commit()
             await db.refresh(project)
-            
-        task_data["project_id"] = project.id
+        project_id = project.id
 
-    db_task = TaskModel(**task_data)
+    assignee_uuid = await resolve_assignee_uuid(task_in.assignee_id, db)
+
+    db_task = TaskModel(
+        id=task_id,
+        project_id=project_id,
+        assignee_id=assignee_uuid,
+        **{k: v for k, v in task_data.items() if k != "project_id"}
+    )
     db.add(db_task)
     try:
         await db.commit()
-        await db.refresh(db_task)
     except Exception as e:
         await db.rollback()
         raise HTTPException(status_code=400, detail=str(e))
     
-    # Broadcast creation via WebSockets
-    task_data_validated = Task.model_validate(db_task).model_dump(mode="json")
-    await manager.broadcast_to_project(
-        str(db_task.project_id),
-        {
-            "event_type": "NEW_TASK",
-            "payload": task_data_validated
-        }
+    # Reload the created task with preloaded assignee and vdl_event relationships
+    result = await db.execute(
+        select(TaskModel)
+        .filter(TaskModel.id == task_id)
+        .options(joinedload(TaskModel.assignee), joinedload(TaskModel.vdl_event))
     )
-    return db_task
+    db_task_full = result.scalars().first()
+    
+    # Broadcast creation via WebSockets to all clients
+    task_data = Task.model_validate(db_task_full).model_dump(mode="json")
+    await manager.broadcast_global({
+        "event_type": "NEW_TASK",
+        "payload": task_data
+    })
+    return db_task_full
 
 @router.get("/{task_id}", response_model=Task)
 async def read_task(
     task_id: str,
     db: AsyncSession = Depends(dependencies.get_db)
 ):
-    result = await db.execute(select(TaskModel).filter(TaskModel.id == task_id))
+    result = await db.execute(
+        select(TaskModel)
+        .filter(TaskModel.id == task_id)
+        .options(joinedload(TaskModel.assignee), joinedload(TaskModel.vdl_event))
+    )
     task = result.scalars().first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -110,28 +166,43 @@ async def update_task(
     task_in: TaskUpdate,
     db: AsyncSession = Depends(dependencies.get_db)
 ):
-    result = await db.execute(select(TaskModel).filter(TaskModel.id == task_id))
+    result = await db.execute(
+        select(TaskModel)
+        .filter(TaskModel.id == task_id)
+        .options(joinedload(TaskModel.assignee), joinedload(TaskModel.vdl_event))
+    )
     db_task = result.scalars().first()
     if not db_task:
         raise HTTPException(status_code=404, detail="Task not found")
     
     update_data = task_in.model_dump(exclude_unset=True)
+    if "assignee_id" in update_data:
+        update_data["assignee_id"] = await resolve_assignee_uuid(update_data["assignee_id"], db)
+
     for field, value in update_data.items():
         setattr(db_task, field, value)
         
-    await db.commit()
-    await db.refresh(db_task)
-    
-    # Broadcast update via WebSockets
-    task_data = Task.model_validate(db_task).model_dump(mode="json")
-    await manager.broadcast_to_project(
-        str(db_task.project_id),
-        {
-            "event_type": "TASK_UPDATED",
-            "payload": task_data
-        }
+    try:
+        await db.commit()
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+        
+    # Reload to ensure relationships are properly updated and retrieved
+    result = await db.execute(
+        select(TaskModel)
+        .filter(TaskModel.id == task_id)
+        .options(joinedload(TaskModel.assignee), joinedload(TaskModel.vdl_event))
     )
-    return db_task
+    db_task_full = result.scalars().first()
+    
+    # Broadcast update via WebSockets to all clients
+    task_data = Task.model_validate(db_task_full).model_dump(mode="json")
+    await manager.broadcast_global({
+        "event_type": "TASK_UPDATED",
+        "payload": task_data
+    })
+    return db_task_full
 
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_task(
@@ -143,16 +214,16 @@ async def delete_task(
     if not db_task:
         raise HTTPException(status_code=404, detail="Task not found")
     
-    project_id = str(db_task.project_id)
     await db.delete(db_task)
-    await db.commit()
+    try:
+        await db.commit()
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
     
-    # Broadcast deletion via WebSockets
-    await manager.broadcast_to_project(
-        project_id,
-        {
-            "event_type": "TASK_DELETED",
-            "payload": {"task_id": task_id}
-        }
-    )
+    # Broadcast deletion via WebSockets to all clients
+    await manager.broadcast_global({
+        "event_type": "TASK_DELETED",
+        "payload": {"task_id": task_id}
+    })
     return None

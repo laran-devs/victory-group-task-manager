@@ -38,15 +38,98 @@ export const useTaskStore = create((set, get) => ({
     { id: '3', login: 'petr', name: 'Петр Сидоров', avatar: 'https://ui-avatars.com/api/?name=Petr+Sidorov&background=10b981&color=fff' }
   ],
   currentUser: null,
+  token: localStorage.getItem('token') || null,
+  isAuthLoading: !!localStorage.getItem('token'),
   isAddTaskModalOpen: false,
   defaultNewTaskStatus: 'TO_DO',
   editingTask: null,
   viewMode: 'board',
   searchQuery: '',
   filterPriority: 'all',
+
+  getAuthHeaders: () => {
+    const t = get().token || localStorage.getItem('token');
+    return t ? { 'Authorization': `Bearer ${t}` } : {};
+  },
   
-  login: (user) => set({ currentUser: user }),
-  logout: () => set({ currentUser: null }),
+  initAuth: async () => {
+    const token = get().token || localStorage.getItem('token');
+    if (!token) {
+      set({ isAuthLoading: false });
+      return;
+    }
+    try {
+      const response = await fetch('/api/auth/me', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const user = await response.json();
+        const mappedUser = {
+          id: user.id,
+          login: user.email.split('@')[0],
+          name: user.full_name,
+          avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name)}&background=4f46e5&color=fff`
+        };
+        set({ currentUser: mappedUser, token, isAuthLoading: false });
+        get().fetchTasks();
+        get().fetchUsers();
+      } else {
+        get().logout();
+      }
+    } catch (error) {
+      console.error('Failed to initialize auth from saved token:', error);
+      set({ isAuthLoading: false });
+    }
+  },
+
+  login: async (loginInput, passwordInput) => {
+    try {
+      const email = loginInput.includes('@') ? loginInput : `${loginInput.trim()}@victory.group`;
+      const password = passwordInput || 'victory123';
+      
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        const { access_token } = data;
+        localStorage.setItem('token', access_token);
+        set({ token: access_token, isAuthLoading: false });
+        
+        const meResponse = await fetch('/api/auth/me', {
+          headers: { 'Authorization': `Bearer ${access_token}` }
+        });
+        
+        if (meResponse.ok) {
+          const user = await meResponse.json();
+          const mappedUser = {
+            id: user.id,
+            login: user.email.split('@')[0],
+            name: user.full_name,
+            avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name)}&background=4f46e5&color=fff`
+          };
+          set({ currentUser: mappedUser });
+          get().fetchTasks();
+          get().fetchUsers();
+          get().addNotification(`Успешный вход! Добро пожаловать, ${user.full_name}`, 'success');
+          return true;
+        }
+      }
+      return false;
+    } catch (error) {
+      console.error('Login action failed:', error);
+      return false;
+    }
+  },
+
+  logout: () => {
+    localStorage.removeItem('token');
+    set({ currentUser: null, token: null, tasks: [], isAuthLoading: false });
+    get().addNotification('Вы вышли из системы', 'info');
+  },
   
   setSearchQuery: (query) => set({ searchQuery: query }),
   setFilterPriority: (priority) => set({ filterPriority: priority }),
@@ -70,7 +153,9 @@ export const useTaskStore = create((set, get) => ({
     const selectedProject = useProjectStore.getState().selectedProject;
     const projectId = selectedProject ? selectedProject.id : 'global';
     try {
-      const response = await fetch(`/api/tasks/?project_id=${projectId}`);
+      const response = await fetch(`/api/tasks/?project_id=${projectId}`, {
+        headers: get().getAuthHeaders()
+      });
       if (response.ok) {
         const data = await response.json();
         const mappedData = data.map(task => ({
@@ -88,6 +173,26 @@ export const useTaskStore = create((set, get) => ({
     }
   },
 
+  fetchUsers: async () => {
+    try {
+      const response = await fetch('/api/team/', {
+        headers: get().getAuthHeaders()
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const mappedUsers = data.map(user => ({
+          id: user.id,
+          login: user.email.split('@')[0],
+          name: user.full_name,
+          avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name)}&background=4f46e5&color=fff`
+        }));
+        set({ users: mappedUsers });
+      }
+    } catch (error) {
+      console.error('Failed to fetch team users from API:', error);
+    }
+  },
+
   moveTask: async (taskId, newStatus) => {
     set((state) => ({
       tasks: state.tasks.map((task) => 
@@ -97,11 +202,14 @@ export const useTaskStore = create((set, get) => ({
     try {
       await fetch(`/api/tasks/${taskId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...get().getAuthHeaders()
+        },
         body: JSON.stringify({ status: newStatus })
       });
     } catch (error) {
-      console.error('Failed to update task:', error);
+      console.error('Failed to update task status:', error);
     }
   },
 
@@ -132,7 +240,10 @@ export const useTaskStore = create((set, get) => ({
     try {
       await fetch(`/api/tasks/${taskId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...get().getAuthHeaders()
+        },
         body: JSON.stringify({ status: overStatus })
       });
     } catch (error) {
@@ -152,7 +263,7 @@ export const useTaskStore = create((set, get) => ({
       createdAt: task.createdAt || new Date().toISOString()
     };
     
-    // Оптимистичное обновление UI
+    // Optimistic UI update
     set((state) => ({
       tasks: [tempTask, ...state.tasks]
     }));
@@ -165,11 +276,15 @@ export const useTaskStore = create((set, get) => ({
         priority: priorityRuToEn(task.priority),
         deadline: task.deadline,
         id: localId, 
-        project_id: isValidUUID(projectId) ? projectId : null,
+        project_id: projectId && projectId !== 'global' ? projectId : null,
       };
+      
       const response = await fetch('/api/tasks/', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...get().getAuthHeaders()
+        },
         body: JSON.stringify(taskPayload)
       });
       if (response.ok) {
@@ -184,7 +299,7 @@ export const useTaskStore = create((set, get) => ({
         }));
       }
     } catch (error) {
-      console.error('Failed to add task on server (working in local mode):', error);
+      console.error('Failed to add task on server:', error);
     }
   },
 
@@ -202,7 +317,6 @@ export const useTaskStore = create((set, get) => ({
       case 'TASK_UPDATED':
         const selectedProj = useProjectStore.getState().selectedProject;
         if (selectedProj && payload.project_id !== selectedProj.id) {
-          // Remove from list if it no longer belongs to the filtered project
           newTasks = newTasks.filter(t => t.id !== payload.id);
         } else {
           const mappedPayload = {
@@ -272,14 +386,14 @@ export const useTaskStore = create((set, get) => ({
   clearAllNotifications: () => set({ notifications: [] }),
 
   deleteTask: async (taskId) => {
-    // Оптимистичное удаление
     set((state) => ({
       tasks: state.tasks.filter((task) => task.id !== taskId)
     }));
 
     try {
       await fetch(`/api/tasks/${taskId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: get().getAuthHeaders()
       });
     } catch (error) {
       console.error('Failed to delete task on server:', error);
@@ -287,14 +401,12 @@ export const useTaskStore = create((set, get) => ({
   },
 
   updateTask: async (taskId, updatedFields) => {
-    // Оптимистичное обновление
     set((state) => ({
       tasks: state.tasks.map((task) => 
         task.id === taskId ? { ...task, ...updatedFields } : task
       )
     }));
 
-    // Подготовка payload с правильными ключами для бэкенда (избегая невалидных UUID и лишних полей)
     const payload = {};
     if ('title' in updatedFields) payload.title = updatedFields.title;
     if ('description' in updatedFields) payload.description = updatedFields.description;
@@ -305,11 +417,17 @@ export const useTaskStore = create((set, get) => ({
     if ('project_id' in updatedFields) {
       payload.project_id = isValidUUID(updatedFields.project_id) ? updatedFields.project_id : null;
     }
+    if ('assigneeId' in updatedFields) {
+      payload.assignee_id = isValidUUID(updatedFields.assigneeId) ? updatedFields.assigneeId : null;
+    }
 
     try {
       const response = await fetch(`/api/tasks/${taskId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...get().getAuthHeaders()
+        },
         body: JSON.stringify(payload)
       });
       if (response.ok) {

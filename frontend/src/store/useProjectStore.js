@@ -11,7 +11,10 @@ export const useProjectStore = create((set, get) => ({
   fetchProjects: async () => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch('/api/projects/');
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/projects/', {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
       if (response.ok) {
         const data = await response.json();
         set({ projects: data, isLoading: false });
@@ -26,9 +29,13 @@ export const useProjectStore = create((set, get) => ({
 
   addProject: async (projectData) => {
     try {
+      const token = localStorage.getItem('token');
       const response = await fetch('/api/projects/', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
         body: JSON.stringify(projectData),
       });
       if (response.ok) {
