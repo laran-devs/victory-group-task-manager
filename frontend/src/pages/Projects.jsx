@@ -7,6 +7,11 @@ export const Projects = () => {
   const projects = useProjectStore((state) => state.projects);
   const searchQuery = useProjectStore((state) => state.searchQuery);
   const setSearchQuery = useProjectStore((state) => state.setSearchQuery);
+  const fetchProjects = useProjectStore((state) => state.fetchProjects);
+
+  React.useEffect(() => {
+    fetchProjects();
+  }, [fetchProjects]);
 
   const filteredProjects = projects.filter(p => 
     p.title.toLowerCase().includes(searchQuery.toLowerCase()) || 

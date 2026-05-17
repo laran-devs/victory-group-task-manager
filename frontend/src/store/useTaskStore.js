@@ -12,6 +12,7 @@ export const useTaskStore = create((set, get) => ({
   ],
   currentUser: null,
   token: localStorage.getItem('token') || null,
+  isAuthLoading: !!localStorage.getItem('token'),
   isAddTaskModalOpen: false,
   defaultNewTaskStatus: 'TO_DO',
   editingTask: null,
@@ -21,7 +22,10 @@ export const useTaskStore = create((set, get) => ({
   
   initAuth: async () => {
     const token = get().token || localStorage.getItem('token');
-    if (!token) return;
+    if (!token) {
+      set({ isAuthLoading: false });
+      return;
+    }
     try {
       const response = await fetch('/api/auth/me', {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -34,7 +38,7 @@ export const useTaskStore = create((set, get) => ({
           name: user.full_name,
           avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name)}&background=4f46e5&color=fff`
         };
-        set({ currentUser: mappedUser, token });
+        set({ currentUser: mappedUser, token, isAuthLoading: false });
         get().fetchTasks();
         get().fetchUsers();
       } else {
@@ -42,6 +46,7 @@ export const useTaskStore = create((set, get) => ({
       }
     } catch (error) {
       console.error('Failed to initialize auth from saved token:', error);
+      set({ isAuthLoading: false });
     }
   },
 
@@ -60,7 +65,7 @@ export const useTaskStore = create((set, get) => ({
         const data = await response.json();
         const { access_token } = data;
         localStorage.setItem('token', access_token);
-        set({ token: access_token });
+        set({ token: access_token, isAuthLoading: false });
         
         const meResponse = await fetch('/api/auth/me', {
           headers: { 'Authorization': `Bearer ${access_token}` }
@@ -90,7 +95,7 @@ export const useTaskStore = create((set, get) => ({
 
   logout: () => {
     localStorage.removeItem('token');
-    set({ currentUser: null, token: null, tasks: [] });
+    set({ currentUser: null, token: null, tasks: [], isAuthLoading: false });
     get().addNotification('Вы вышли из системы', 'info');
   },
   

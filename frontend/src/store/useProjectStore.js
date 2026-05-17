@@ -59,10 +59,40 @@ const MOCK_PROJECTS = [
   }
 ];
 
-export const useProjectStore = create((set) => ({
+export const useProjectStore = create((set, get) => ({
   projects: MOCK_PROJECTS,
   searchQuery: '',
   setSearchQuery: (query) => set({ searchQuery: query }),
+  
+  fetchProjects: async () => {
+    try {
+      const response = await fetch('/api/projects');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.length > 0) {
+          const mapped = data.map(p => ({
+            id: p.id,
+            title: p.name,
+            description: p.description || '',
+            status: 'В работе',
+            progress: p.id === 'global' ? 65 : 30,
+            dueDate: '2026-12-31',
+            members: [
+              { id: '1', name: 'Иван Иванов', avatar: 'https://ui-avatars.com/api/?name=Ivan+Ivanov&background=4f46e5&color=fff' }
+            ],
+            taskCount: p.id === 'global' ? 5 : 12,
+            color: p.id === 'global' ? 'bg-indigo-500' : 'bg-emerald-500'
+          }));
+          set({ projects: mapped });
+          return;
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch projects:', error);
+    }
+    // Fallback if empty or failed
+    set({ projects: MOCK_PROJECTS });
+  },
   
   addProject: (project) => set((state) => ({
     projects: [
