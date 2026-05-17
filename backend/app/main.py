@@ -18,6 +18,13 @@ async def lifespan(app: FastAPI):
         # Create all tables (safe for early dev, replaces Alembic for now)
         await conn.run_sync(Base.metadata.create_all)
     
+    # Run database seeding
+    from app.core.seeding import seed_data
+    try:
+        await seed_data()
+    except Exception as e:
+        print(f"Error during database seeding: {e}", flush=True)
+    
     # Start RabbitMQ Background Consumer
     app.state.rabbitmq_task = asyncio.create_task(consume_events())
     

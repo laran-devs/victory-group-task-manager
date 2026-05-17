@@ -3,6 +3,7 @@ import datetime
 from sqlalchemy import Column, String, Enum as SQLEnum, ForeignKey, DateTime
 from sqlalchemy.dialects.postgresql import UUID
 from app.models.base import Base
+from sqlalchemy.orm import relationship
 import enum
 
 class TaskStatus(str, enum.Enum):
@@ -26,9 +27,13 @@ class Task(Base):
     status = Column(SQLEnum(TaskStatus), default=TaskStatus.TO_DO, nullable=False)
     priority = Column(SQLEnum(TaskPriority), default=TaskPriority.MEDIUM, nullable=False)
     
-    project_id = Column(UUID(as_uuid=True), ForeignKey("projects.id"), nullable=False)
+    project_id = Column(String, ForeignKey("projects.id"), nullable=False)
     assignee_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     vdl_event_id = Column(UUID(as_uuid=True), ForeignKey("vdl_events.id"), nullable=True)
     
     deadline = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+
+    assignee = relationship("User", backref="tasks")
+    vdl_event = relationship("VDLEvent", backref="tasks")
+    project = relationship("Project", backref="tasks")
