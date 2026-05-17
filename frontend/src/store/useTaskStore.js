@@ -5,9 +5,9 @@ import { arrayMove } from '@dnd-kit/sortable';
 export const useTaskStore = create((set) => ({
   tasks: initialTasks,
   notifications: [],
-  
+
   moveTask: (taskId, newStatus) => set((state) => ({
-    tasks: state.tasks.map((task) => 
+    tasks: state.tasks.map((task) =>
       task.id === taskId ? { ...task, status: newStatus } : task
     )
   })),
@@ -26,22 +26,22 @@ export const useTaskStore = create((set) => ({
 
     const updatedTasks = [...state.tasks];
     updatedTasks[taskIndex] = { ...updatedTasks[taskIndex], status: overStatus };
-    
+
     if (overId && overId !== taskId) {
       const overIndex = state.tasks.findIndex((t) => t.id === overId);
       return { tasks: arrayMove(updatedTasks, taskIndex, overIndex) };
     }
-    
+
     return { tasks: updatedTasks };
   }),
 
   addTask: (task) => set((state) => ({
     tasks: [
-      { 
-        ...task, 
-        id: task.id || `VT-${Math.floor(Math.random() * 1000)}`, 
-        createdAt: task.createdAt || new Date().toISOString() 
-      }, 
+      {
+        ...task,
+        id: task.id || `VT-${Math.floor(Math.random() * 1000)}`,
+        createdAt: task.createdAt || new Date().toISOString()
+      },
       ...state.tasks
     ]
   })),
@@ -49,22 +49,22 @@ export const useTaskStore = create((set) => ({
   handleServerEvent: (event) => set((state) => {
     const { type, payload } = event;
     let newTasks = [...state.tasks];
-    let newNotification = { 
-      id: Date.now(), 
-      type: 'info', 
-      message: '' 
+    let newNotification = {
+      id: Date.now(),
+      type: 'info',
+      message: ''
     };
 
     switch (type) {
       case 'TASK_UPDATED':
-        newTasks = newTasks.map(t => 
+        newTasks = newTasks.map(t =>
           t.id === payload.id ? { ...t, status: payload.status } : t
         );
         newNotification.message = `Задача ${payload.id} обновлена: ${payload.status}`;
         break;
-      
+
       case 'VDL_ALERT':
-        newTasks = newTasks.map(t => 
+        newTasks = newTasks.map(t =>
           t.id === payload.id ? { ...t, vdlEvent: payload.vdlEvent } : t
         );
         newNotification.message = `Критическое событие аналитики по задаче ${payload.id}`;
@@ -78,12 +78,12 @@ export const useTaskStore = create((set) => ({
           newNotification.type = 'success';
         }
         break;
-      
+
       default:
         return state;
     }
 
-    return { 
+    return {
       tasks: newTasks,
       notifications: [...state.notifications, newNotification]
     };
@@ -98,7 +98,7 @@ export const useTaskStore = create((set) => ({
   })),
 
   updateTask: (taskId, updatedFields) => set((state) => ({
-    tasks: state.tasks.map((task) => 
+    tasks: state.tasks.map((task) =>
       task.id === taskId ? { ...task, ...updatedFields } : task
     )
   }))
