@@ -127,7 +127,7 @@ async def seed_database(db: AsyncSession):
         )
         task_4 = Task(
             id="VT-104",
-            title="Дизайн UI-кита для Victory Group",
+            title="Дизайн UI-кита для Victory Tasks",
             description="Обновить компоненты кнопок и инпутов согласно новому гайдлайну.",
             status=TaskStatus.DONE,
             priority=TaskPriority.LOW,

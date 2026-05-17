@@ -73,7 +73,7 @@ async def seed_data():
             global_project = Project(
                 id="global",
                 name="Global Project",
-                description="Global Victory Group project for all tasks",
+                description="Global Victory Tasks project for all tasks",
                 owner_id=owner_id
             )
             db.add(global_project)
@@ -126,7 +126,7 @@ async def seed_data():
                 },
                 {
                     "id": "VT-104",
-                    "title": "Дизайн UI-кита для Victory Group",
+                    "title": "Дизайн UI-кита для Victory Tasks",
                     "description": "Обновить компоненты кнопок и инпутов согласно новому гайдлайну.",
                     "status": "DONE",
                     "priority": "Низкий",

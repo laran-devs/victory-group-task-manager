@@ -22,7 +22,7 @@ const Dashboard = () => {
             {selectedProject ? `Задачи проекта: ${selectedProject.name}` : 'Все задачи компании'}
           </h1>
           <p className="text-gray-500 text-sm">
-            {selectedProject ? selectedProject.description || 'Управление рабочим процессом' : 'Управление рабочим процессом Victory Group'}
+            {selectedProject ? selectedProject.description || 'Управление рабочим процессом' : 'Управление рабочим процессом Victory Tasks'}
           </p>
         </div>
         <div className="flex items-center gap-2">

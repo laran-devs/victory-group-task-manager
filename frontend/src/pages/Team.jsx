@@ -16,7 +16,7 @@ export const Team = () => {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-black text-zinc-900 tracking-tight">Команда</h1>
-          <p className="text-zinc-500 font-medium mt-1">Состав проектного офиса Victory Group</p>
+          <p className="text-zinc-500 font-medium mt-1">Состав проектного офиса Victory Tasks</p>
         </div>
         <div className="flex items-center gap-4">
           <div className="relative w-72">

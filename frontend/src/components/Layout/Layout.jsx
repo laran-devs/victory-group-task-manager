@@ -40,13 +40,12 @@ const Sidebar = () => {
   };
 
   const menuItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
-    { icon: Briefcase, label: 'Projects', path: '/projects' },
-    { icon: Users, label: 'Team', path: '/team' },
+    { icon: LayoutDashboard, label: 'Панель задач', path: '/' },
+    { icon: Briefcase, label: 'Проекты', path: '/projects' },
+    { icon: Users, label: 'Команда', path: '/team' },
     ...((currentUser?.role === 'Admin' || currentUser?.role === 'Superuser')
       ? [{ icon: BarChart3, label: 'Панель управления', path: '/admin' }]
       : []),
-    { icon: UserCircle, label: 'Clients', path: '/clients' },
   ];
 
   return (
@@ -54,7 +53,7 @@ const Sidebar = () => {
       <div className="p-6">
         <div className="flex items-center gap-3 mb-10">
           <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center font-bold text-xl">V</div>
-          <span className="font-bold text-xl tracking-tight">Victory Group</span>
+          <span className="font-bold text-xl tracking-tight">Victory Tasks</span>
         </div>
 
         <nav className="space-y-1">

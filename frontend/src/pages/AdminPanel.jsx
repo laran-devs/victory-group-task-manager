@@ -583,7 +583,7 @@ const AdminPanel = () => {
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col justify-between">
             <div>
               <h3 className="font-extrabold text-zinc-900 text-lg mb-1 flex items-center gap-2">
-                Команда Victory Group
+                Команда Victory Tasks
                 <Users size={18} className="text-zinc-600" />
               </h3>
               <p className="text-gray-500 text-xs mb-6">

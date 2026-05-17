@@ -2,7 +2,7 @@ import os
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "Victory Group Task Manager"
+    PROJECT_NAME: str = "Victory Tasks Task Manager"
     
     DATABASE_URL: str
     RABBITMQ_URL: str

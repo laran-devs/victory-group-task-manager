@@ -2,7 +2,6 @@ import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { MainLayout } from './components/Layout/Layout';
 import Dashboard from './pages/Dashboard';
-import { Clients } from './pages/OtherPages';
 import { Projects } from './pages/Projects';
 import { NotificationToast } from './components/NotificationToast';
 import { simulateIncomingEvents } from './services/socket';
@@ -33,7 +32,7 @@ function App() {
     return (
       <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center">
         <div className="animate-spin h-10 w-10 border-4 border-indigo-500 border-t-transparent rounded-full mb-4"></div>
-        <p className="text-zinc-400 font-bold text-sm tracking-wide">Инициализация сессии Victory Group...</p>
+        <p className="text-zinc-400 font-bold text-sm tracking-wide">Инициализация сессии Victory Tasks...</p>
       </div>
     );
   }
@@ -49,7 +48,6 @@ function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/tasks" element={<Dashboard />} />
           <Route path="/projects" element={<Projects />} />
-          <Route path="/clients" element={<Clients />} />
           <Route path="/team" element={<Team />} />
           {(currentUser.role === 'Admin' || currentUser.role === 'Superuser') && (
             <Route path="/admin" element={<AdminPanel />} />
