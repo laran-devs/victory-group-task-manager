@@ -41,3 +41,25 @@ async def get_current_user(
     if user is None:
         raise credentials_exception
     return user
+
+async def get_current_active_superuser(
+    current_user: UserModel = Depends(get_current_user)
+) -> UserModel:
+    from app.models.user import UserRole
+    if current_user.role != UserRole.SUPERUSER:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Для этого действия требуются права Суперпользователя"
+        )
+    return current_user
+
+async def get_current_active_admin_or_higher(
+    current_user: UserModel = Depends(get_current_user)
+) -> UserModel:
+    from app.models.user import UserRole
+    if current_user.role not in (UserRole.SUPERUSER, UserRole.ADMIN):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="У вас недостаточно прав для выполнения этого действия"
+        )
+    return current_user

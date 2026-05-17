@@ -11,6 +11,11 @@ class TaskStatus(str, enum.Enum):
     READY = "READY"
     IN_PROGRESS = "IN_PROGRESS"
     DONE = "DONE"
+    CUSTOM_1 = "CUSTOM_1"
+    CUSTOM_2 = "CUSTOM_2"
+    CUSTOM_3 = "CUSTOM_3"
+    CUSTOM_4 = "CUSTOM_4"
+    CUSTOM_5 = "CUSTOM_5"
 
 class TaskPriority(str, enum.Enum):
     LOW = "LOW"

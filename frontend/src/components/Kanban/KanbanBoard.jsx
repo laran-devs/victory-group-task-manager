@@ -37,12 +37,7 @@ export const KanbanBoard = () => {
     })
   );
 
-  const columns = [
-    { title: 'В бэклоге', status: 'TO_DO' },
-    { title: 'К выполнению', status: 'READY' },
-    { title: 'В работе', status: 'IN_PROGRESS' },
-    { title: 'Готово', status: 'DONE' }
-  ];
+  const columns = useTaskStore((state) => state.columns);
 
   const handleDragEnd = (event) => {
     const { active, over } = event;

@@ -5,6 +5,7 @@ from app.models.base import Base
 import enum
 
 class UserRole(str, enum.Enum):
+    SUPERUSER = "Superuser"
     ADMIN = "Admin"
     USER = "User"
 

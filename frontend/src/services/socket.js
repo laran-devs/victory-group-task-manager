@@ -75,14 +75,6 @@ export const simulateIncomingEvents = (onEvent) => {
         }
       },
       {
-        type: 'VDL_ALERT',
-        payload: {
-          id: 'VT-103',
-          message: 'ROI Критическое снижение -15%',
-          severity: 'critical'
-        }
-      },
-      {
         type: 'NEW_TASK',
         payload: {
           id: `VT-${Math.floor(Math.random() * 100 + 200)}`,
@@ -101,11 +93,6 @@ export const simulateIncomingEvents = (onEvent) => {
     simulatedInterval = setInterval(() => {
       if (isConnected) return;
       const randomEvent = eventTypes[Math.floor(Math.random() * eventTypes.length)];
-      // Randomize target task for VDL alert from existing mocked tasks
-      if (randomEvent.type === 'VDL_ALERT') {
-        const mockTaskIds = ['VT-101', 'VT-102', 'VT-103', 'VT-105'];
-        randomEvent.payload.id = mockTaskIds[Math.floor(Math.random() * mockTaskIds.length)];
-      }
       console.log('📡 Simulated WS Event:', randomEvent);
       onEvent(randomEvent);
     }, 25000);

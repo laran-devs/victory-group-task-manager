@@ -18,6 +18,7 @@ export const AddTaskModal = () => {
   const editingTask = useTaskStore((state) => state.editingTask);
   const users = useTaskStore((state) => state.users);
   const currentUser = useTaskStore((state) => state.currentUser);
+  const columns = useTaskStore((state) => state.columns);
   
   const projects = useProjectStore((state) => state.projects);
   const fetchProjects = useProjectStore((state) => state.fetchProjects);
@@ -172,14 +173,13 @@ export const AddTaskModal = () => {
             <div className="space-y-1">
               <label className="text-xs font-bold text-gray-500 uppercase">Статус</label>
               <select 
-                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none appearance-none cursor-pointer"
+                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none appearance-none cursor-pointer text-zinc-800 font-medium"
                 value={formData.status}
                 onChange={(e) => setFormData({...formData, status: e.target.value})}
               >
-                <option value="TO_DO">В бэклоге</option>
-                <option value="READY">К выполнению</option>
-                <option value="IN_PROGRESS">В работе</option>
-                <option value="DONE">Готово</option>
+                {columns.map(col => (
+                  <option key={col.status} value={col.status}>{col.title}</option>
+                ))}
               </select>
             </div>
             <div className="space-y-1">

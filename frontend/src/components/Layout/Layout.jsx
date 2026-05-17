@@ -12,7 +12,7 @@ import {
   LogOut,
   X
 } from 'lucide-react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { AddTaskModal } from '../AddTaskModal';
@@ -27,11 +27,25 @@ const Sidebar = () => {
   const currentUser = useTaskStore((state) => state.currentUser);
   const logout = useTaskStore((state) => state.logout);
 
+  const getRoleLabel = (role) => {
+    if (role === 'Superuser') return 'Супер';
+    if (role === 'Admin') return 'Админ';
+    return 'Сотрудник';
+  };
+
+  const getRoleBadgeClass = (role) => {
+    if (role === 'Superuser') return 'bg-red-500/20 text-red-400 border border-red-500/30';
+    if (role === 'Admin') return 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30';
+    return 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
+  };
+
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
     { icon: Briefcase, label: 'Projects', path: '/projects' },
     { icon: Users, label: 'Team', path: '/team' },
-    { icon: BarChart3, label: 'Reports', path: '/reports' },
+    ...((currentUser?.role === 'Admin' || currentUser?.role === 'Superuser')
+      ? [{ icon: BarChart3, label: 'Панель управления', path: '/admin' }]
+      : []),
     { icon: UserCircle, label: 'Clients', path: '/clients' },
   ];
 
@@ -67,7 +81,12 @@ const Sidebar = () => {
           </div>
           <div className="flex flex-col flex-1 overflow-hidden">
             <span className="text-sm font-semibold truncate">{currentUser?.name}</span>
-            <span className="text-xs text-zinc-500 truncate">Сотрудник</span>
+            <span className={cn(
+              "text-[9px] font-black px-2 py-0.5 rounded-full mt-1 w-max uppercase tracking-wider",
+              getRoleBadgeClass(currentUser?.role)
+            )}>
+              {getRoleLabel(currentUser?.role)}
+            </span>
           </div>
           <button 
             onClick={logout}
@@ -188,15 +207,20 @@ const TopBar = ({ onAddTask, onFeatureNotReady }) => {
 export const MainLayout = ({ children }) => {
   const openAddTaskModal = useTaskStore((state) => state.openAddTaskModal);
   const addNotification = useTaskStore((state) => state.addNotification);
+  const location = useLocation();
+
+  const isDashboard = location.pathname === '/' || location.pathname === '/tasks';
 
   return (
     <div className="min-h-screen bg-gray-100">
       <Sidebar />
       <div className="pl-64">
-        <TopBar 
-          onAddTask={() => openAddTaskModal('TO_DO')} 
-          onFeatureNotReady={(feature) => addNotification(`${feature} в разработке`, 'info')}
-        />
+        {isDashboard && (
+          <TopBar 
+            onAddTask={() => openAddTaskModal('TO_DO')} 
+            onFeatureNotReady={(feature) => addNotification(`${feature} в разработке`, 'info')}
+          />
+        )}
         <main className="p-8">
           {children}
         </main>

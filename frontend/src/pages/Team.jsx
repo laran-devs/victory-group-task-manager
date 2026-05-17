@@ -60,7 +60,7 @@ export const Team = () => {
               <div className="space-y-2 mt-4 pt-4 border-t border-gray-50 text-sm font-medium">
                 <div className="flex items-center gap-2.5 text-zinc-600">
                   <Briefcase size={16} className="text-gray-400" />
-                  <span>Разработчик</span>
+                  <span>{user.position || 'Разработчик'}</span>
                 </div>
                 <div className="flex items-center gap-2.5 text-zinc-600">
                   <Mail size={16} className="text-gray-400" />
@@ -68,8 +68,14 @@ export const Team = () => {
                 </div>
                 <div className="flex items-center gap-2.5 text-zinc-600">
                   <Shield size={16} className="text-gray-400" />
-                  <span className="text-xs px-2 py-0.5 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-md font-bold">
-                    Сотрудник
+                  <span className={`text-xs px-2 py-0.5 rounded-md font-bold ${
+                    user.role === 'Superuser' ? 'bg-red-50 text-red-600 border border-red-100' :
+                    user.role === 'Admin' ? 'bg-indigo-50 text-indigo-600 border border-indigo-100' :
+                    'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                  }`}>
+                    {user.role === 'Superuser' ? 'Суперпользователь' :
+                     user.role === 'Admin' ? 'Администратор' :
+                     'Сотрудник'}
                   </span>
                 </div>
               </div>

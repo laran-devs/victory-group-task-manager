@@ -11,7 +11,24 @@ from app.core.security import get_password_hash
 async def seed_data():
     async with AsyncSessionLocal() as db:
         # 1. Seed Users
-        # Ensure Ivan and Petr exist in the database for testers
+        # Ensure Superuser, Ivan, and Petr exist in the database for testers
+        super_result = await db.execute(select(User).filter(User.email == "super@victory.ru"))
+        user_super = super_result.scalars().first()
+        if not user_super:
+            print("Seeding super@victory.ru...", flush=True)
+            user_super = User(
+                id=uuid.uuid4(),
+                email="super@victory.ru",
+                hashed_password=get_password_hash("victory123"),
+                full_name="Суперпользователь",
+                role=UserRole.SUPERUSER,
+                position="Owner"
+            )
+            db.add(user_super)
+            await db.commit()
+            await db.refresh(user_super)
+            print("Superuser seeded successfully.", flush=True)
+
         ivan_result = await db.execute(select(User).filter(User.email == "ivan@victory.ru"))
         user_ivan = ivan_result.scalars().first()
         if not user_ivan:

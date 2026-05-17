@@ -17,6 +17,10 @@ export const KanbanColumn = ({ title, status, tasks }) => {
   const menuRef = useRef(null);
   const deleteTask = useTaskStore((state) => state.deleteTask);
 
+  const columnData = useTaskStore((state) => state.columns.find(c => c.status === status));
+  const wipLimit = columnData?.limit || 0;
+  const isOverLimit = wipLimit > 0 && tasks.length > wipLimit;
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
@@ -32,9 +36,18 @@ export const KanbanColumn = ({ title, status, tasks }) => {
       <div className="flex items-center justify-between mb-4 px-1">
         <div className="flex items-center gap-2">
           <h2 className="font-bold text-sm text-zinc-700 uppercase tracking-wider">{title}</h2>
-          <span className="bg-gray-200 text-zinc-600 px-2 py-0.5 rounded-full text-[10px] font-black">
-            {tasks.length}
+          <span className={`px-2 py-0.5 rounded-full text-[10px] font-black transition-colors ${
+            isOverLimit 
+              ? 'bg-red-500 text-white animate-pulse' 
+              : 'bg-gray-200 text-zinc-600'
+          }`}>
+            {tasks.length}{wipLimit > 0 ? ` / ${wipLimit}` : ''}
           </span>
+          {isOverLimit && (
+            <span className="text-[10px] font-bold text-red-500 tracking-wider animate-pulse shrink-0">
+              ⚠️ Лимит!
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-1">
           <button 
@@ -81,7 +94,11 @@ export const KanbanColumn = ({ title, status, tasks }) => {
 
       <div 
         ref={setNodeRef}
-        className="flex-1 flex flex-col gap-3 min-h-[500px] bg-gray-100/50 rounded-xl p-1"
+        className={`flex-1 flex flex-col gap-3 min-h-[500px] rounded-xl p-2 transition-all duration-300 ${
+          isOverLimit 
+            ? 'bg-red-50/70 border border-dashed border-red-300 ring-2 ring-red-400/20' 
+            : 'bg-zinc-100/50 border border-transparent'
+        }`}
       >
         <SortableContext 
           items={tasks.map(t => t.id)} 

@@ -24,23 +24,19 @@ const PriorityBadge = ({ priority }) => {
 };
 
 const StatusBadge = ({ status }) => {
-  const styles = {
-    'TO_DO': 'bg-gray-100 text-gray-600',
-    'READY': 'bg-blue-100 text-blue-600',
-    'IN_PROGRESS': 'bg-yellow-100 text-yellow-700',
-    'DONE': 'bg-green-100 text-green-600'
-  };
+  const columns = useTaskStore((state) => state.columns);
+  const col = columns.find(c => c.status === status);
+  const title = col ? col.title : status;
   
-  const labels = {
-    'TO_DO': 'В бэклоге',
-    'READY': 'К выполнению',
-    'IN_PROGRESS': 'В работе',
-    'DONE': 'Готово'
-  };
+  const bgClass = 
+    status === 'TO_DO' ? 'bg-zinc-100 text-zinc-700 border border-zinc-200/50' :
+    status === 'IN_PROGRESS' ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' :
+    status === 'DONE' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' :
+    'bg-purple-50 text-purple-700 border border-purple-100';
 
   return (
-    <span className={cn("px-2 py-1 rounded-md text-[11px] font-bold uppercase tracking-wider", styles[status])}>
-      {labels[status] || status}
+    <span className={cn("px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border", bgClass)}>
+      {title}
     </span>
   );
 };
@@ -83,14 +79,7 @@ export const TaskListView = () => {
                 <td className="px-6 py-4">
                   <div className="flex flex-col gap-1">
                     <span className="font-bold text-sm text-gray-900 group-hover:text-indigo-600 transition-colors">{task.title}</span>
-                    <div className="flex items-center gap-2">
                       <span className="text-xs text-gray-500 truncate max-w-xs">{task.description}</span>
-                      {task.vdlEvent && (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded border border-red-100">
-                          <AlertCircle size={10} /> VDL Alert
-                        </span>
-                      )}
-                    </div>
                   </div>
                 </td>
                 <td className="px-6 py-4">

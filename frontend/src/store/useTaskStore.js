@@ -19,6 +19,16 @@ export const useTaskStore = create((set, get) => ({
   viewMode: 'board',
   searchQuery: '',
   filterPriority: 'all',
+  columns: [
+    { title: 'To Do', status: 'TO_DO', limit: 0, isCore: true },
+    { title: 'In Progress', status: 'IN_PROGRESS', limit: 3, isCore: true },
+    { title: 'Done', status: 'DONE', limit: 0, isCore: true }
+  ],
+  automationRules: {
+    autoAssignCritical: true,
+    highlightSLA: true,
+    autoArchiveDone: false
+  },
   
   initAuth: async () => {
     const token = get().token || localStorage.getItem('token');
@@ -36,7 +46,8 @@ export const useTaskStore = create((set, get) => ({
           id: user.id,
           login: user.email.split('@')[0],
           name: user.full_name,
-          avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name)}&background=4f46e5&color=fff`
+          avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name)}&background=4f46e5&color=fff`,
+          role: user.role
         };
         set({ currentUser: mappedUser, token, isAuthLoading: false });
         get().fetchTasks();
@@ -77,7 +88,8 @@ export const useTaskStore = create((set, get) => ({
             id: user.id,
             login: user.email.split('@')[0],
             name: user.full_name,
-            avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name)}&background=4f46e5&color=fff`
+            avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name)}&background=4f46e5&color=fff`,
+            role: user.role
           };
           set({ currentUser: mappedUser });
           get().fetchTasks();
@@ -108,6 +120,67 @@ export const useTaskStore = create((set, get) => ({
     editingTask: taskToEdit 
   }),
   closeAddTaskModal: () => set({ isAddTaskModalOpen: false, editingTask: null }),
+
+  setColumns: (newColumns) => set({ columns: newColumns }),
+  updateWIPLimit: (status, limit) => set((state) => ({ 
+    columns: state.columns.map(c => c.status === status ? { ...c, limit: parseInt(limit) || 0 } : c) 
+  })),
+  renameColumn: (status, newTitle) => set((state) => {
+    const col = state.columns.find(c => c.status === status);
+    if (col && col.isCore) return {}; // Ignore renames on core columns
+    return { 
+      columns: state.columns.map(c => c.status === status ? { ...c, title: newTitle } : c) 
+    };
+  }),
+  addColumn: (title) => set((state) => {
+    const activeStatuses = state.columns.map(c => c.status);
+    const availableCustom = ['CUSTOM_1', 'CUSTOM_2', 'CUSTOM_3', 'CUSTOM_4', 'CUSTOM_5'].find(
+      status => !activeStatuses.includes(status)
+    );
+    if (!availableCustom) {
+      get().addNotification('Достигнут лимит кастомных колонок (макс. 5)', 'error');
+      return {};
+    }
+    const newCol = { title, status: availableCustom, limit: 0, isCore: false };
+    const newColumns = [...state.columns, newCol];
+    get().addNotification(`Колонка "${title}" создана!`, 'success');
+    return { columns: newColumns };
+  }),
+  deleteColumn: (status) => set((state) => {
+    const col = state.columns.find(c => c.status === status);
+    if (!col) return {};
+    if (col.isCore) {
+      get().addNotification('Нельзя удалить системную колонку!', 'error');
+      return {};
+    }
+    
+    // Move all tasks in this column back to TO_DO
+    const updatedTasks = state.tasks.map(t => 
+      t.status === status ? { ...t, status: 'TO_DO' } : t
+    );
+    
+    const newColumns = state.columns.filter(c => c.status !== status);
+    get().addNotification(`Колонка "${col.title}" удалена. Задачи перенесены в "To Do".`, 'info');
+    return { columns: newColumns, tasks: updatedTasks };
+  }),
+  moveColumn: (status, direction) => set((state) => {
+    const index = state.columns.findIndex(c => c.status === status);
+    if (index === -1) return {};
+    const targetIndex = direction === 'left' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= state.columns.length) return {};
+    
+    const newColumns = [...state.columns];
+    const temp = newColumns[index];
+    newColumns[index] = newColumns[targetIndex];
+    newColumns[targetIndex] = temp;
+    return { columns: newColumns };
+  }),
+  toggleAutomationRule: (ruleName) => set((state) => ({
+    automationRules: { 
+      ...state.automationRules, 
+      [ruleName]: !state.automationRules[ruleName] 
+    }
+  })),
 
   addNotification: (message, type = 'info') => set((state) => {
     const newNotification = { id: Date.now(), message, type };
@@ -201,6 +274,16 @@ export const useTaskStore = create((set, get) => ({
     
     set({ tasks: nextTasks });
 
+    // Auto-Archive Done Tasks automation rule
+    if (state.automationRules.autoArchiveDone && overStatus === 'DONE') {
+      setTimeout(() => {
+        set((s) => ({
+          tasks: s.tasks.filter((t) => t.id !== taskId)
+        }));
+        get().addNotification(`Задача ${taskId} автоматически архивирована!`, 'success');
+      }, 1500);
+    }
+
     try {
       const token = get().token || localStorage.getItem('token');
       await fetch(`/api/tasks/${taskId}`, {
@@ -217,15 +300,24 @@ export const useTaskStore = create((set, get) => ({
   },
 
   addTask: async (task) => {
-    const localId = task.id || `VT-${Math.floor(Math.random() * 1000)}`;
+    const state = get();
+    let finalTask = { ...task };
+    if (state.automationRules.autoAssignCritical && finalTask.priority === 'Критический') {
+      const leadPM = state.users.find(u => u.role === 'Admin') || state.users[0];
+      if (leadPM) {
+        finalTask.assigneeId = leadPM.id;
+      }
+    }
+
+    const localId = finalTask.id || `VT-${Math.floor(Math.random() * 1000)}`;
     const tempTask = {
-      ...task,
+      ...finalTask,
       id: localId,
-      createdAt: task.createdAt || new Date().toISOString()
+      createdAt: finalTask.createdAt || new Date().toISOString()
     };
     
-    set((state) => ({
-      tasks: [tempTask, ...state.tasks]
+    set((s) => ({
+      tasks: [tempTask, ...s.tasks]
     }));
 
     try {
@@ -326,9 +418,18 @@ export const useTaskStore = create((set, get) => ({
   },
 
   updateTask: async (taskId, updatedFields) => {
-    set((state) => ({
-      tasks: state.tasks.map((task) => 
-        task.id === taskId ? { ...task, ...updatedFields } : task
+    const state = get();
+    let nextFields = { ...updatedFields };
+    if (state.automationRules.autoAssignCritical && nextFields.priority === 'Критический') {
+      const leadPM = state.users.find(u => u.role === 'Admin') || state.users[0];
+      if (leadPM) {
+        nextFields.assigneeId = leadPM.id;
+      }
+    }
+
+    set((s) => ({
+      tasks: s.tasks.map((task) => 
+        task.id === taskId ? { ...task, ...nextFields } : task
       )
     }));
 
@@ -344,6 +445,39 @@ export const useTaskStore = create((set, get) => ({
       });
     } catch (error) {
       console.error('Failed to update task:', error);
+    }
+  },
+
+  registerUser: async (userData) => {
+    try {
+      const token = get().token || localStorage.getItem('token');
+      const response = await fetch('/api/team/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify(userData)
+      });
+      if (response.ok) {
+        const newUser = await response.json();
+        set((state) => ({ users: [...state.users, {
+          id: newUser.id,
+          login: newUser.email.split('@')[0],
+          name: newUser.full_name,
+          avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(newUser.full_name)}&background=4f46e5&color=fff`,
+          role: newUser.role
+        }] }));
+        get().addNotification(`Сотрудник ${newUser.full_name} успешно зарегистрирован!`, 'success');
+        return { success: true, data: newUser };
+      } else {
+        const errData = await response.json();
+        throw new Error(errData.detail || 'Не удалось зарегистрировать сотрудника');
+      }
+    } catch (error) {
+      console.error('Error registering team member:', error);
+      get().addNotification(`Ошибка: ${error.message}`, 'error');
+      return { success: false, error: error.message };
     }
   }
 }));

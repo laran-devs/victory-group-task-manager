@@ -39,8 +39,10 @@ export const TaskCard = ({ task }) => {
   const deleteTask = useTaskStore((state) => state.deleteTask);
   const openAddTaskModal = useTaskStore((state) => state.openAddTaskModal);
   const users = useTaskStore((state) => state.users);
+  const automationRules = useTaskStore((state) => state.automationRules);
   
   const assignee = users.find(u => u.id === task.assigneeId || u.id === task.assignee_id) || users[0];
+  const isOverdue = automationRules.highlightSLA && task.deadline && new Date(task.deadline) < new Date() && task.status !== 'DONE';
   
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef(null);
@@ -61,8 +63,6 @@ export const TaskCard = ({ task }) => {
     opacity: isDragging ? 0.3 : 1,
   };
 
-  const isCritical = task.vdlEvent?.severity === 'critical';
-
   return (
     <div 
       ref={setNodeRef}
@@ -70,10 +70,7 @@ export const TaskCard = ({ task }) => {
       {...attributes}
       {...listeners}
       className={cn(
-        "group p-4 rounded-xl border transition-all cursor-grab active:cursor-grabbing",
-        isCritical 
-          ? "bg-red-50 border-red-200 shadow-sm" 
-          : "bg-white border-gray-200",
+        "group p-4 rounded-xl border bg-white border-gray-200 transition-all cursor-grab active:cursor-grabbing hover:shadow-md",
         isDragging && "shadow-2xl z-50 ring-2 ring-indigo-500 border-transparent"
       )}
     >
@@ -134,23 +131,17 @@ export const TaskCard = ({ task }) => {
         {task.description}
       </p>
 
-      {task.vdlEvent && (
-        <div className="mb-4 p-2 bg-red-100/50 rounded-lg border border-red-200 flex items-center gap-2">
-          <AlertCircle size={14} className="text-red-500" />
-          <span className="text-[10px] font-bold text-red-700 uppercase tracking-tight">
-            VDL EVENT: {task.vdlEvent.message}
-          </span>
-        </div>
-      )}
+
 
       <div className="flex items-center justify-between mt-auto pt-3 border-t border-gray-50">
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1 text-gray-400">
-            <Calendar size={12} />
+          <div className={cn("flex items-center gap-1", isOverdue ? "text-red-500 font-extrabold" : "text-gray-400")}>
+            {isOverdue ? <AlertCircle size={12} className="animate-pulse" /> : <Calendar size={12} />}
             <span className="text-[10px] font-medium">
               {task.deadline 
                 ? new Date(task.deadline).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })
                 : 'Без срока'}
+              {isOverdue && ' (Просрочено)'}
             </span>
           </div>
           <PriorityBadge priority={task.priority} />

@@ -8,8 +8,8 @@ import { NotificationToast } from './components/NotificationToast';
 import { simulateIncomingEvents } from './services/socket';
 import { useTaskStore } from './store/useTaskStore';
 import { LoginScreen } from './pages/LoginScreen';
-
 import { Team } from './pages/Team';
+import AdminPanel from './pages/AdminPanel';
 
 function App() {
   const handleServerEvent = useTaskStore((state) => state.handleServerEvent);
@@ -51,6 +51,9 @@ function App() {
           <Route path="/projects" element={<Projects />} />
           <Route path="/clients" element={<Clients />} />
           <Route path="/team" element={<Team />} />
+          {(currentUser.role === 'Admin' || currentUser.role === 'Superuser') && (
+            <Route path="/admin" element={<AdminPanel />} />
+          )}
           <Route path="/reports" element={<div className="p-8">Раздел Отчеты</div>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
