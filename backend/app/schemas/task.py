@@ -37,7 +37,7 @@ class TaskBase(BaseModel):
             return priority_map.get(value, TaskPriority.MEDIUM)
         return value
 
-    @field_serializer("priority")
+    @field_serializer("priority", when_used="json")
     def serialize_priority(self, priority: TaskPriority) -> str:
         reverse_map = {
             TaskPriority.LOW: "Низкий",
@@ -84,7 +84,7 @@ class TaskUpdate(BaseModel):
             return priority_map.get(value, TaskPriority.MEDIUM)
         return value
 
-    @field_serializer("priority")
+    @field_serializer("priority", when_used="json")
     def serialize_priority(self, priority: Optional[TaskPriority]) -> Optional[str]:
         if not priority:
             return None

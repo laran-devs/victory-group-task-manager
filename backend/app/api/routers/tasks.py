@@ -17,17 +17,27 @@ router = APIRouter()
 async def resolve_assignee_uuid(assignee_id: Optional[Union[UUID, str]], db: AsyncSession) -> Optional[UUID]:
     if not assignee_id:
         return None
-    if isinstance(assignee_id, UUID):
-        return assignee_id
+        
+    from app.models.user import User as UserModel
     
     # Try parsing string to UUID
-    try:
-        return UUID(assignee_id)
-    except ValueError:
-        pass
-
+    target_uuid = None
+    if isinstance(assignee_id, UUID):
+        target_uuid = assignee_id
+    else:
+        try:
+            target_uuid = UUID(assignee_id)
+        except ValueError:
+            pass
+            
+    if target_uuid:
+        # Check if user actually exists in the database to prevent Foreign Key crashes
+        result = await db.execute(select(UserModel.id).filter(UserModel.id == target_uuid))
+        exists = result.scalar()
+        if exists:
+            return exists
+            
     # Handle string IDs from frontend mocks ("1", "2", "3" or logins)
-    from app.models.user import User as UserModel
     if assignee_id in ("1", "ivan"):
         result = await db.execute(select(UserModel.id).filter(UserModel.email.like("ivan%")))
         val = result.scalar()
